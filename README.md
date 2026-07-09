@@ -53,7 +53,10 @@ This template includes a copy of [playdate-luacats](https://github.com/notpeter/
 - If you opened VSCode before you set your environment variable, VSCode hasn't picked up on the new environment variable yet - first try closing and reopening VSCode
 - `Task configuration failed: Could not read Playdate SDK version at <path>`
   - This means that the PlaydateSDK folder was not found at the path that you set your `PLAYDATE_SDK_PATH` environment variable to. It likely means that your PlaydateSDK folder was not installed in the default documents folder (`C:\Users\<Username>\Documents\PlaydateSDK` for Windows). Double-check your Documents folder and look for a `PlaydateSDK` folder. If it's there, try setting it again. Otherwise, it got installed somewhere else, so you'll need to set the environment variable to that path, or reinstall the SDK at your normal documents folder
-  - Sometimes, for Windows, your PlaydateSDK gets installed in the OneDrive documents folder instead by default. In that case, you'll need to change the environment variable path to your OneDrive path instead (something like `"C:\Users\<Username>\OneDrive\Documents\PlaydateSDK"`), or reinstall the Playdate SDK in your normal documents folder
+  - Sometimes, for Windows, your PlaydateSDK gets installed in the **OneDrive** documents folder instead by default (e.g. `C:\Users\<Username>\OneDrive\Documents\PlaydateSDK`. In that case, you'll need to change the environment variable path to your OneDrive path instead by using the below command in the "Set your environment variable" step, or go through the installer again and ensure the Playdate SDK is in your normal documents folder
+  ```sh
+   [Environment]::SetEnvironmentVariable("PLAYDATE_SDK_PATH", "$env:USERPROFILE\OneDrive\Documents\PlaydateSDK", "User")
+  ```
   - Another possible Windows issue is the Playdate SDK gets installed on another drive (e.g. `D:\`, `E:\`, etc.)
   - If you set a custom path, it's possible that you made a typo when setting your environment variable path - try setting it again
   - After every change to your environment variable, you'll need to close and re-open VSCode for it to pickup the change
