@@ -115,3 +115,12 @@ Once you fill that out and build your project one more time, you can find the `.
     - You can find more information about this file [here](https://sdk.play.date/Inside%20Playdate.html#pdxinfo)
 - `README.md` - The file you're reading (can be deleted)
 
+# Contributing
+
+Work is **ticket-driven**: Issues → feature branches → PRs into `main`. Never push product work directly to `main`.
+
+- **Humans:** [CONTRIBUTING.md](./CONTRIBUTING.md)
+- **Agents:** [AGENTS.md](./AGENTS.md) (full playbook: git hygiene, CI, verification)
+
+`main` is branch-protected (PRs required, force-push/delete blocked, CI status `check` required). Re-apply with `./scripts/setup-branch-protection.sh` if settings drift.
+
