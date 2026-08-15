@@ -1,0 +1,16 @@
+# Compiled Playdate bundles
+*.pdx/
+*.pdx.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+*.log
+
+# Secrets
+.env
+.env.*
+!.env.example
