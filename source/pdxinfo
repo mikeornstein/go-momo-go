@@ -3,4 +3,4 @@ author=Mike Ornstein
 description=A Playdate game
 bundleID=com.mikeornstein.gomomogo
 version=0.1.0
-buildNumber=5
+buildNumber=6
