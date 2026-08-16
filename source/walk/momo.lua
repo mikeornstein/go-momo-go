@@ -9,7 +9,7 @@ local SIZE <const> = 40
 local SPEED <const> = 2.2
 local COME_FRAMES <const> = 24
 local YANK_FRAMES <const> = 14
-local PEE_FRAMES <const> = 18
+local PEE_FRAMES <const> = 24
 local CIRCLE_FRAMES <const> = 18
 local SQUAT_FRAMES <const> = 36
 local REFUSE_FRAMES <const> = 20
@@ -42,6 +42,8 @@ function Momo:reset(walkerX, sidewalkY)
     self.coolPatch = nil
     self.coolFrames = 0
     self.event = nil
+    self.eventX = nil
+    self.eventY = nil
 end
 
 function Momo:isComing()
@@ -140,6 +142,8 @@ function Momo:tickGo()
     elseif self.state == "refuse" then
         self.event = "refused"
     end
+    self.eventX = self.worldX
+    self.eventY = self.worldY
     self.state = "wander"
     self.goKind = nil
     self.pottyX = nil
@@ -245,7 +249,17 @@ function Momo:draw(cameraX)
     gfx.drawLine(x + 4, y + 12, x + 2, y + 14)
 
     if self.state == "pee" then
-        gfx.drawLine(x + 8, y + 30, x + 16, y + 24)
+        -- Lifted rear leg + a falling stream. The puddle is drawn by Mess.
+        gfx.drawLine(x + 6, y + 28, x + 18, y + 18)
+        gfx.drawLine(x + 18, y + 18, x + 20, y + 26)
+        local drip = (self.goFrames % 6)
+        gfx.fillCircleAtPoint(x + 20, y + 28 + drip, 2)
+        gfx.fillCircleAtPoint(x + 16, y + 36, 2)
+    elseif self.state == "squat" then
+        -- Pile growing under him so the squat is not just a lower circle.
+        local grow = 1 - (self.goFrames / SQUAT_FRAMES)
+        local r = 3 + math.floor(grow * 5)
+        gfx.fillCircleAtPoint(x + 12, y + 38, r)
     elseif self.state == "refuse" then
         gfx.drawText("...", x - 8, y - 14)
     elseif self.yankFrames > 0 or self.event == "interrupted" then
