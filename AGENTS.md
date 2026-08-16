@@ -13,13 +13,7 @@ Playbook for agents working on **go-momo-go**. Prefer these commands over asking
 
 ### Local app commands
 
-Build and run via VS Code **Run Build Task** (`cmd + shift + b`) or `pdc` if the Playdate SDK is on `PATH`:
-
-```bash
-pdc source builds/Game.pdx
-```
-
-Always verify graphics, type, audio, and performance on a **physical Playdate**. The Simulator is larger, faster, and higher-contrast than the device. See [Playdate design constraints](#playdate-design-constraints) below.
+See [Simulator, playtest, and screenshots](#simulator-playtest-and-screenshots) for the agent workflow. VS Code **Run Build Task** (`cmd + shift + b`) is for humans; agents use `pdc` and the Simulator CLI below.
 
 ## Hard rules for agents
 
@@ -219,10 +213,134 @@ gh pr checks
 |-----------|------------|
 | Always | Review `git status` and the full diff; no accidental files |
 | Docs-only | Proofread; keep `AGENTS.md` / `CONTRIBUTING.md` consistent |
-| Game code | Build in the Simulator; verify on a physical Playdate when graphics, type, audio, crank, or performance change |
+| Game code | Follow [Simulator, playtest, and screenshots](#simulator-playtest-and-screenshots); ask the user to check a physical Playdate when graphics, type, audio, crank, or performance change |
 | PR open | `gh pr checks` green, or fix failures on the same branch |
 
 Never use `Closes #N` if acceptance criteria remain unmet.
+
+## Simulator, playtest, and screenshots
+
+This is the **agent** path on this Mac. Do not assume VS Code tasks, Accessibility keystrokes, or `screencapture` work. They were verified **not** to, unless the user has granted extra permissions.
+
+### What is already installed
+
+| Piece | Path |
+|-------|------|
+| SDK 3.1.1 | `~/Developer/PlaydateSDK` |
+| Compiler | `/usr/local/bin/pdc` → SDK `bin/pdc` |
+| Simulator | `~/Developer/PlaydateSDK/bin/Playdate Simulator.app` |
+| Game source | `source/main.lua`, `source/pdxinfo` |
+| Compiled output | `builds/Game.pdx` (gitignored; path is pinned in these commands) |
+| Screenshot dumps | `test/screenshots/` (commit only intentional reference PNGs) |
+
+`PLAYDATE_SDK_PATH` is often **unset**. `pdc` still works via the symlink. Set it for the session anyway so the Simulator and VS Code tasks can find the SDK:
+
+```bash
+export PLAYDATE_SDK_PATH="$HOME/Developer/PlaydateSDK"
+```
+
+Optional for GUI apps launched this login: `launchctl setenv PLAYDATE_SDK_PATH "$HOME/Developer/PlaydateSDK"`.
+
+### Build
+
+```bash
+export PLAYDATE_SDK_PATH="$HOME/Developer/PlaydateSDK"
+pdc source builds/Game.pdx
+```
+
+`pdc` compiles `source/` (and SDK `CoreLibs` imports) into `builds/Game.pdx`. Never commit `*.pdx/`.
+
+### Run the Simulator
+
+Keep **one** Simulator instance. Quit extras before launching:
+
+```bash
+osascript -e 'tell application "Playdate Simulator" to quit'
+# if it ignores AppleScript:
+kill -9 $(pgrep -x "Playdate Simulator") 2>/dev/null || true
+
+open -a "Playdate Simulator" builds/Game.pdx
+```
+
+To capture Simulator `print()` on a tty, launch the binary instead of `open`:
+
+```bash
+"$PLAYDATE_SDK_PATH/bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator" \
+  "$PWD/builds/Game.pdx"
+```
+
+`print()` did **not** show up on the captured process stdout when the Simulator was launched as a background GUI from this agent. Do not rely on that log. Use `writeToFile` (below) as the proof artifact.
+
+Reload after a rebuild with the same `open -a "Playdate Simulator" builds/Game.pdx` line, or have the user press `Cmd-R`. Agents cannot send `Cmd-R` (no Accessibility).
+
+### What this template does
+
+Current `source/main.lua` is the stock crank demo:
+
+- Crank **docked** (Simulator default): player stays at (200, 120); official “Use the Crank!” bubble animates.
+- Crank **undocked**: player moves in the crank heading and wraps the 400×240 screen.
+
+Humans undock via the **Dock Crank** checkbox, then crank with `[` / `]`, the mouse wheel, or the on-screen crank. Other Simulator keys: Space pause, `Cmd-R` restart, Escape system menu. D-pad / A / B come from the **Controls** menu scheme.
+
+Agents **cannot** click Dock Crank or inject `[` / `]`. `osascript` System Events and `CGEvent` key posts fail with assistive-access errors. Do not busy-loop trying.
+
+### Playtest without UI control
+
+Drive the same game logic from Lua for the frames you need, dump screenshots, then **revert** `source/main.lua` (and rebuild) so dump/playtest hooks never ship.
+
+Pattern:
+
+1. Temporarily call the real update path with known inputs (for this template: the crank-velocity / wrap math, not a fake redraw).
+2. Dump 400×240 frames to `test/screenshots/` via `playdate.simulator.writeToFile`.
+3. `git checkout -- source/main.lua` (or otherwise restore) and `pdc` again.
+4. Leave at most intentional reference PNGs under `test/screenshots/`.
+
+Do not leave `writeToFile` or synthetic-input hooks in `playdate.update`.
+
+### Screenshots (the method that works)
+
+macOS **Screen Recording** is denied to this agent. `screencapture` (`-l` window id or full display) fails with `could not create image`. Do not use it.
+
+Write the **last completed framebuffer** from Lua. Host path, `.png` suffix, directory must already exist:
+
+```lua
+-- playdate.isSimulator is 1 in the Simulator, nil on device (not a function)
+if playdate.isSimulator then
+    playdate.simulator.writeToFile(
+        playdate.graphics.getDisplayImage(),
+        "/Users/mornstein/git/go-momo-go/test/screenshots/shot.png"
+    )
+end
+```
+
+Rules:
+
+- `getDisplayImage()` is the **previous** completed frame. Dumping on frame 1 is blank. Wait until frame 2+.
+- Prefer absolute paths under this repo’s `test/screenshots/`. `~/…` also works; Playdate filesystem paths do not.
+- Output is a true **400×240** 1-bit PNG (no Simulator chrome, no highlight-updates overlay).
+- `mkdir -p test/screenshots` before launching.
+- Commit a PNG here only when it is a deliberate reference for a ticket. Do not leave one-off dumps.
+
+Human-only alternatives (do not depend on these): toolbar camera button (Option-click copies); **Playdate → Simulate Device Appearance** tints shots gray.
+
+### Agent debug loop
+
+```text
+edit source/  →  pdc source builds/Game.pdx  →  open -a "Playdate Simulator" builds/Game.pdx
+     ↑                                                      ↓
+     └──── revert dump hooks; keep test/screenshots/*.png ←─┘
+```
+
+| Need | Do this |
+|------|---------|
+| Did it compile? | `pdc` exit 0; `builds/Game.pdx/main.pdz` exists |
+| What does it look like? | One-shot `writeToFile` of `getDisplayImage()` on frame ≥ 2 |
+| Did state change? | Dump two named PNGs (before/after) under `test/screenshots/` |
+| Crank / buttons | Simulate the same math or `playdate.buttonIsPressed` branches in Lua; do not send HID events |
+| Console / Sampler / Highlight Screen Updates | Ask the user; those are Simulator UI |
+| Legibility, crank feel, audio, perf | Ask the user to check a **physical Playdate**. Simulator sign-off is not enough. See [Playdate design constraints](#playdate-design-constraints). |
+
+CI (`check`) does **not** run `pdc` or the Simulator. A green PR check is not a playtest.
 
 ## Scope and safety
 

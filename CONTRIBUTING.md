@@ -30,7 +30,7 @@ Thank you for contributing. This project is **ticket-driven**: every change ship
 - [ ] On a feature branch (not `main`)
 - [ ] Branch name includes the issue number
 - [ ] Diff is intentional (no secrets, no compiled `.pdx` bundles)
-- [ ] Verification appropriate to the change (docs proofread; Playdate Simulator / device when game code changes)
+- [ ] Verification appropriate to the change (docs proofread; Playdate Simulator / device when game code changes). Agents: [Simulator, playtest, and screenshots](./AGENTS.md#simulator-playtest-and-screenshots)
 - [ ] PR body links the issue
 
 ## CI

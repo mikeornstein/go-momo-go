@@ -26,9 +26,11 @@ jobs:
           set -euo pipefail
           test -f source/main.lua
           test -f source/pdxinfo
-          grep -q '^name=' source/pdxinfo
-          grep -q '^version=' source/pdxinfo
-          grep -q '^buildNumber=' source/pdxinfo
+          grep -qE '^name=.+' source/pdxinfo
+          grep -qE '^author=.+' source/pdxinfo
+          grep -qE '^bundleID=com\.[A-Za-z0-9.-]+$' source/pdxinfo
+          grep -qE '^version=.+' source/pdxinfo
+          grep -qE '^buildNumber=[0-9]+$' source/pdxinfo
           echo "Source layout and pdxinfo keys OK."
 
       - name: No compiled Playdate bundles committed
