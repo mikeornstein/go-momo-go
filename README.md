@@ -1,12 +1,10 @@
+# Go Momo Go
 
-![TemplateBanner](https://github.com/user-attachments/assets/a0e438d1-9923-4525-ae5c-c0d179ec3bc7)
+A [Playdate](https://play.date) game in Lua. Development environment is Visual Studio Code with automated builds, autocomplete, and debugging (Windows, Mac, and Linux). Started from [SquidGod’s playdate-template](https://github.com/SquidGodDev/playdate-template).
 
-# Playdate Template
-This template will help you set up everything you need to start making a game for the Playdate. We will be creating a development environment to make a Playdate game in Lua using Visual Studio Code. Sets up automated builds, autocomplete, and debugging. Works for Windows, Mac, and Linux.
+**Status:** stock crank demo while the game is being built. Docked crank shows **Go Momo Go**; undock and crank to move.
 
-You can find a video tutorial on how to use this template and make your first Playdate game here: https://youtu.be/UZ04rk3lLqU
-
-This template includes a copy of [playdate-luacats](https://github.com/notpeter/playdate-luacats) by notpeter, licensed under the MIT license.
+This repo includes a copy of [playdate-luacats](https://github.com/notpeter/playdate-luacats) by notpeter, licensed under the MIT license. Template video: https://youtu.be/UZ04rk3lLqU
 
 # Setup
 1. Download and install Visual Studio Code (VSCode) at [https://code.visualstudio.com/download](https://code.visualstudio.com/download)
@@ -38,8 +36,8 @@ This template includes a copy of [playdate-luacats](https://github.com/notpeter/
        ```
      - Press `Ctrl + X` to exit, `Y` to save, and then `Enter` to confirm the file name
      - If `nano` is not installed, you can manually edit/create your `.bashrc` file which you can find by navigating to your Home folder (make sure hidden files are shown) 
-4. Download this template - to do so, press the big green `<> Code` button at the top of the Github page, click "Download ZIP", and unzip the file (alternatively, if you have git installed, you can just clone the repository)
-5. Open the downloaded template folder in VSCode by first launching VSCode, and then going to `File -> Open Folder` at the top left of your VSCode window
+4. Clone this repository
+5. Open the repo folder in VSCode by first launching VSCode, and then going to `File -> Open Folder` at the top left of your VSCode window
    - Make sure you're opening the folder than contains the `.vscode` folder directly, *not* the folder containing that folder, as some unzipping utilities automatically create an extra parent folder
    - This is because the `.vscode` folder must be a direct child of the folder you opened in order for VSCode to pick it up
 6. A popup should appear on the bottom right of your VSCode window asking you to install recommended extensions - go ahead and click install
@@ -47,7 +45,7 @@ This template includes a copy of [playdate-luacats](https://github.com/notpeter/
    - The extensions are "Lua" by sumneko and "Playdate Debug" by midouest
 7. Press `ctrl + shift + b` (`cmd + shift + b` for Mac), or go to `Terminal -> Run Build Task...` at the top of your VSCode window to build your project
 8. The Playdate Simulator should launch automatically with your game
-9. You can delete this `README.md` file and the `.txt` file in the `builds` folder
+9. The compiled `.pdx` lands in `builds/` (gitignored)
 
 # Troubleshooting
 - If you opened VSCode before you set your environment variable, VSCode hasn't picked up on the new environment variable yet - first try closing and reopening VSCode
@@ -76,44 +74,24 @@ This template includes a copy of [playdate-luacats](https://github.com/notpeter/
 2. Press `F5`, or click the `Run and Debug` icon (triangle with a little bug next to it)
    - The debug button on the top right of your file is *not* the same - this debugs the current *file*, not the whole project, so it will fail (unless your file contains `playdate.update`)
 
-# Starting a new project
-To start a new project, you can re-download or make a copy of this template folder and open it again in VSCode. Since the extensions have already been installed, you can immediately build and run your new project. Except for this `README.md` file, *every* file in this template is required, so each of your projects needs a copy of the `.vscode` folder and all its contents, at the very least the `main.lua` and `pdxinfo` in the `source` folder, and an empty `builds` folder.
-
 # Sharing your project
-Before sharing your project, you must fill out the `pdxinfo` file with metadata about your game. You can find more information about that [here](https://sdk.play.date/Inside%20Playdate.html#pdxinfo).
+Game metadata lives in `source/pdxinfo`. See [System and Game Metadata](https://sdk.play.date/Inside%20Playdate.html#pdxinfo).
 
-The required fields are already listed in the `pdxinfo` file. The main things to note are:
-1. `bundleID` must be in the specific `com.[author].[gamename]` format
-2. The `version` number is *only* used as something to display to players, not for version handling, so this can be formatted however you want
-3. The `buildNumber` is what's used by the Playdate system for version handling (i.e. to know when there is an update), so you must increase this number whenever you release an update to the game to signify that there is a new version
-4. The `description` field isn't actually being used for anything right now, but it might be in the future, so it's probably good to fill it out
+- `bundleID` must stay in `com.[author].[gamename]` form (`com.mikeornstein.gomomogo`)
+- `version` is display-only; `buildNumber` is what the Playdate uses for updates — bump it on every release
+- After a build, zip the `.pdx` folder in `builds/` to share
 
-Here is a sample pdxinfo file:
-```
-name=Propeller Rat
-author=SquidGod
-description=Propeller around as a rat - in space
-bundleID=com.squidgod.propellerrat
-version=1.0
-buildNumber=1
-```
-
-Once you fill that out and build your project one more time, you can find the `.pdx` folder in the `builds` folder with the name of your game. Zip the entire `.pdx` folder, and share it to the world!
-
-# Template Structure
+# Repo structure
 - `.vscode` - Tells VSCode how to build and launch your Playdate game
   - `playdate-luacats` - Enables type annotations and autocomplete for the Playdate SDK
   - `extensions.json` - Defines for recommended extensions
   - `launch.json` - Defines what `Run and Debug` should do
   - `tasks.json` - Defines what `Run Build Task...` should do
-- `builds` - When you run the build task, the compiled Playdate program goes here in the form of a `.pdx`
-  - `buildsFolder.txt` - A short description of what the `build` folder is for (can be deleted)
-- `source` - The code and assets for your game goes here
-  - `main.lua` - Initial entry point for your Playdate game (contains an example program which can be deleted)
-  - `pdxinfo` - Used by the Playdate to get metadata about your game
-    - You must fill this out before sharing your game
-    - You can find more information about this file [here](https://sdk.play.date/Inside%20Playdate.html#pdxinfo)
-- `README.md` - The file you're reading (can be deleted)
+- `builds` - Compiled `.pdx` output (gitignored)
+- `source` - Game code and assets
+  - `main.lua` - Entry point
+  - `pdxinfo` - Playdate catalog metadata
+- `test/screenshots` - Agent reference framebuffers (400×240, no Simulator chrome)
 
 # Contributing
 
