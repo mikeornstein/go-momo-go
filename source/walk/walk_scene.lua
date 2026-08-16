@@ -1,9 +1,11 @@
--- Walk 1 scene: commute + two-body leash. Potty and encounters land later.
+-- Walk 1 scene: commute, leash, surfaces, and the go loop.
 
 import "CoreLibs/graphics"
 import "walk/leash"
 import "walk/walker"
 import "walk/momo"
+import "walk/surfaces"
+import "walk/hud"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -22,7 +24,12 @@ local REFRESH_RATE <const> = 30
 local WALKER_SCREEN_X <const> = 80
 
 local HOME_WORLD_X <const> = 2000
-local CLOCK_SECONDS <const> = 45
+local CLOCK_SECONDS <const> = 50
+
+local PEE_RATE <const> = 1 / 8
+local POO_RATE <const> = 1 / 18
+local PEE_GO <const> = 0.8
+local POO_GO <const> = 0.85
 
 -- Held B becomes Wait after this so a tap can still be Come.
 local WAIT_HOLD_FRAMES <const> = 8
@@ -34,6 +41,7 @@ local STREET_PATTERN <const> = {0x55, 0x00, 0x55, 0x00, 0x55, 0x00, 0x55, 0x00}
 
 local WIN_COPY <const> = "Good boy."
 local LOSE_COPY <const> = "He can hold it. You cannot."
+local GNOME_COPY <const> = "The gnome saw everything."
 
 WalkScene = {}
 WalkScene.__index = WalkScene
@@ -43,6 +51,7 @@ function WalkScene.new()
     self.leash = Leash.new()
     self.walker = Walker.new()
     self.momo = Momo.new()
+    self.surfaces = Surfaces.walk1()
     self:reset()
     return self
 end
@@ -52,6 +61,10 @@ function WalkScene:reset()
     self.clock = CLOCK_SECONDS
     self.state = "walking"
     self.bHold = 0
+    self.pee = 0.45
+    self.poo = 0.2
+    self.didPee = false
+    self.didPoo = false
     self.leash:reset()
     self.walker:reset()
     self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
@@ -82,13 +95,25 @@ end
 
 function WalkScene:desiredMomo()
     local wx = self:walkerWorldX()
-    local ahead = self.leash.length * 0.7
-    local desiredX = wx + ahead
+    local desiredX = wx + self.leash.length * 0.7
     local desiredY = SIDEWALK_BOTTOM
     if pd.buttonIsPressed(pd.kButtonUp) then
-        desiredY = YARDS_BOTTOM - 8
-    elseif pd.buttonIsPressed(pd.kButtonDown) then
-        desiredY = SIDEWALK_BOTTOM + 24
+        return desiredX, YARDS_BOTTOM - 8
+    end
+    if pd.buttonIsPressed(pd.kButtonDown) then
+        return desiredX, SIDEWALK_BOTTOM + 24
+    end
+    local want = nil
+    if (not self.didPoo) and self.poo >= POO_GO then
+        want = "poo"
+    elseif (not self.didPee) and self.pee >= PEE_GO then
+        want = "pee"
+    end
+    if want then
+        local tx, ty = self.surfaces:nearest(want, wx, self.leash.length + 48)
+        if tx then
+            return tx, ty
+        end
     end
     return desiredX, desiredY
 end
@@ -105,13 +130,13 @@ function WalkScene:update()
     local degrees = reelInput()
     self.leash:update(degrees, docked)
 
-    if pd.buttonJustPressed(pd.kButtonB) then
-        self.momo:come()
-        self.bHold = 0
-    end
+    -- Tap B = Come. Hold B = Wait only (a hold must not also Come).
     if pd.buttonIsPressed(pd.kButtonB) then
         self.bHold += 1
     else
+        if self.bHold > 0 and self.bHold < WAIT_HOLD_FRAMES then
+            self.momo:come()
+        end
         self.bHold = 0
     end
     self.walker.waiting = (not docked) and self.bHold >= WAIT_HOLD_FRAMES
@@ -120,6 +145,16 @@ function WalkScene:update()
         self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
         self.walker.waiting = false
         return
+    end
+
+    if not self.momo:isCommitted() then
+        if not self.didPee then
+            self.pee = math.min(1, self.pee + PEE_RATE / REFRESH_RATE)
+        end
+        if not self.didPoo then
+            self.poo = math.min(1, self.poo + POO_RATE / REFRESH_RATE)
+        end
+        self:tryStartGo()
     end
 
     local desiredX, desiredY = self:desiredMomo()
@@ -132,10 +167,26 @@ function WalkScene:update()
         desiredY,
         self.leash
     )
-    if self.leash:isYank(degrees, taut, self.momo:isComing()) then
+
+    -- Once he starts to go, the commute pauses so slack is enough to finish.
+    -- Yank / Come still interrupt.
+    if self.momo:isCommitted() then
+        self.walker.waiting = true
+    end
+
+    local moving = self.walker:commuteScale() > 0
+    if self.leash:isYank(degrees, taut, self.momo:isComing())
+        or (self.momo:isCommitted() and taut and moving)
+    then
+        local _, patch = self.surfaces:at(self.momo.worldX, self.momo.worldY)
+        if self.momo:isCommitted() then
+            self.momo:setCooldown(patch)
+        end
         self.momo:yank()
         self.walker:yank()
     end
+
+    self:handleGoEvent()
 
     self.walker:update()
     self.cameraX += COMMUTE_SPEED * self.walker:commuteScale()
@@ -148,15 +199,59 @@ function WalkScene:update()
     end
 
     if self:walkerWorldX() >= HOME_WORLD_X then
-        self.state = "win"
+        self.cameraX = HOME_WORLD_X - WALKER_SCREEN_X
+        if self.didPee and self.didPoo then
+            self.state = "win"
+        end
     end
 end
 
-local function formatClock(seconds)
-    local remaining = math.max(0, math.ceil(seconds))
-    local minutes = remaining // 60
-    local secs = remaining % 60
-    return string.format("work in %d:%02d", minutes, secs)
+function WalkScene:tryStartGo()
+    if self.momo:isBusy() then
+        return
+    end
+    local kind, patch = self.surfaces:at(self.momo.worldX, self.momo.worldY)
+    if self.momo:onCooldown(patch) then
+        return
+    end
+    if (not self.didPoo) and self.poo >= POO_GO then
+        if Surfaces.allowsPoo(kind) or Surfaces.pooFails(kind) then
+            self.momo:beginCircle()
+            return
+        end
+        -- Refuse only on grass that looks close enough — never loop on sidewalk.
+        if kind == "patchy" then
+            self.momo:beginRefuse()
+            return
+        end
+    end
+    if (not self.didPee) and self.pee >= PEE_GO and Surfaces.allowsPee(kind) then
+        self.momo:beginPee()
+    end
+end
+
+function WalkScene:handleGoEvent()
+    local event = self.momo.event
+    if event == nil then
+        return
+    end
+    local kind, patch = self.surfaces:at(self.momo.worldX, self.momo.worldY)
+    if event == "peed" then
+        self.pee = 0
+        self.didPee = true
+    elseif event == "pooed" then
+        if Surfaces.pooFails(kind) then
+            self.state = "gnome"
+        else
+            self.poo = 0
+            self.didPoo = true
+        end
+    elseif event == "refused" or event == "interrupted" then
+        self.momo:setCooldown(patch)
+        if event == "interrupted" and not self.momo:isComing() then
+            self.walker:yank()
+        end
+    end
 end
 
 local function drawYards(cameraX)
@@ -208,17 +303,6 @@ local function drawHome(cameraX)
     gfx.drawText("home", x + 6, YARDS_BOTTOM - 80)
 end
 
-local function drawClock(seconds)
-    local label = formatClock(seconds)
-    local w, h = 150, 22
-    local x, y = SCREEN_W - w - 6, 6
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRect(x, y, w, h)
-    gfx.setColor(gfx.kColorBlack)
-    gfx.drawRect(x, y, w, h)
-    gfx.drawText(label, x + 6, y + 3)
-end
-
 local function drawEndCard(copy)
     gfx.setColor(gfx.kColorWhite)
     gfx.fillRect(0, 0, SCREEN_W, SCREEN_H)
@@ -236,13 +320,19 @@ function WalkScene:draw()
         drawEndCard(LOSE_COPY)
         return
     end
+    if self.state == "gnome" then
+        drawEndCard(GNOME_COPY)
+        return
+    end
 
     gfx.setColor(gfx.kColorWhite)
     gfx.fillRect(0, 0, SCREEN_W, SCREEN_H)
 
     drawYards(self.cameraX)
+    self.surfaces:drawGrass(self.cameraX, SCREEN_W)
     drawSidewalk(self.cameraX)
     drawStreet(self.cameraX)
+    self.surfaces:drawProps(self.cameraX, SCREEN_W)
     drawHome(self.cameraX)
 
     self.walker:draw(WALKER_SCREEN_X, SIDEWALK_BOTTOM)
@@ -250,7 +340,15 @@ function WalkScene:draw()
     local collarX, collarY = self.momo:collarScreen(self.cameraX)
     self.leash:draw(handX, handY, collarX, collarY)
     self.momo:draw(self.cameraX)
-    drawClock(self.clock)
+    Hud.drawClock(self.clock)
+    Hud.drawUrges(self.pee, self.poo, self.didPee, self.didPoo)
+    if self.momo:isCommitted() then
+        Hud.drawHint("waiting — B tap cancels")
+    elseif self.walker.waiting then
+        Hud.drawHint("waiting")
+    else
+        Hud.drawHint("hold B to wait")
+    end
 
     if self:isDocked() then
         pd.ui.crankIndicator:draw()
