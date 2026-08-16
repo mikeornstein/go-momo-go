@@ -6,7 +6,7 @@ Concept, mechanics, story, and v1 scope: **[docs/game-design.md](docs/game-desig
 
 Development environment is Visual Studio Code with automated builds, autocomplete, and debugging (Windows, Mac, and Linux). Started from [SquidGod’s playdate-template](https://github.com/SquidGodDev/playdate-template).
 
-**Status:** Walk + leash are in. Undock and crank to pay out / reel in Momo (clockwise = longer). B tap Come, B hold Wait. Docked crank holds everyone at heel. Potty and encounters are next.
+**Status:** Walk, leash, and the go loop are in. Pay out so Momo can reach a hydrant (pee) and the nice lawn (poo); Wait while he goes. Home only wins after both. Pee-mail and encounters are next.
 
 This repo includes a copy of [playdate-luacats](https://github.com/notpeter/playdate-luacats) by notpeter, licensed under the MIT license. Template video: https://youtu.be/UZ04rk3lLqU
 
@@ -98,6 +98,7 @@ Game metadata lives in `source/pdxinfo`. See [System and Game Metadata](https://
   - `main.lua` - Entry point; boots the walk scene
   - `walk/walk_scene.lua` - Sidewalk commute, clock, stub end cards
   - `walk/leash.lua` / `walker.lua` / `momo.lua` - Reel leash and greybox pair
+  - `walk/surfaces.lua` / `hud.lua` - Grass types, hydrant, gnome lawn, urge meters
   - `pdxinfo` - Playdate catalog metadata
 - `test/screenshots` - Agent reference framebuffers (400×240, no Simulator chrome)
 
