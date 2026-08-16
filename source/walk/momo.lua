@@ -137,6 +137,8 @@ function Momo:tickGo()
         self.event = "peed"
     elseif self.state == "squat" then
         self.event = "pooed"
+    elseif self.state == "refuse" then
+        self.event = "refused"
     end
     self.state = "wander"
     self.goKind = nil

@@ -130,13 +130,13 @@ function WalkScene:update()
     local degrees = reelInput()
     self.leash:update(degrees, docked)
 
-    if pd.buttonJustPressed(pd.kButtonB) then
-        self.momo:come()
-        self.bHold = 0
-    end
+    -- Tap B = Come. Hold B = Wait only (a hold must not also Come).
     if pd.buttonIsPressed(pd.kButtonB) then
         self.bHold += 1
     else
+        if self.bHold > 0 and self.bHold < WAIT_HOLD_FRAMES then
+            self.momo:come()
+        end
         self.bHold = 0
     end
     self.walker.waiting = (not docked) and self.bHold >= WAIT_HOLD_FRAMES
@@ -167,6 +167,12 @@ function WalkScene:update()
         desiredY,
         self.leash
     )
+
+    -- Once he starts to go, the commute pauses so slack is enough to finish.
+    -- Yank / Come still interrupt.
+    if self.momo:isCommitted() then
+        self.walker.waiting = true
+    end
 
     local moving = self.walker:commuteScale() > 0
     if self.leash:isYank(degrees, taut, self.momo:isComing())
@@ -213,7 +219,8 @@ function WalkScene:tryStartGo()
             self.momo:beginCircle()
             return
         end
-        if kind == "sidewalk" or kind == "patchy" or kind == "hydrant" or kind == "street" then
+        -- Refuse only on grass that looks close enough — never loop on sidewalk.
+        if kind == "patchy" then
             self.momo:beginRefuse()
             return
         end
@@ -239,9 +246,9 @@ function WalkScene:handleGoEvent()
             self.poo = 0
             self.didPoo = true
         end
-    elseif event == "interrupted" then
+    elseif event == "refused" or event == "interrupted" then
         self.momo:setCooldown(patch)
-        if not self.momo:isComing() then
+        if event == "interrupted" and not self.momo:isComing() then
             self.walker:yank()
         end
     end
@@ -335,6 +342,13 @@ function WalkScene:draw()
     self.momo:draw(self.cameraX)
     Hud.drawClock(self.clock)
     Hud.drawUrges(self.pee, self.poo, self.didPee, self.didPoo)
+    if self.momo:isCommitted() then
+        Hud.drawHint("waiting — B tap cancels")
+    elseif self.walker.waiting then
+        Hud.drawHint("waiting")
+    else
+        Hud.drawHint("hold B to wait")
+    end
 
     if self:isDocked() then
         pd.ui.crankIndicator:draw()

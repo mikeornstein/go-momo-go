@@ -38,6 +38,17 @@ local function drawMeter(x, y, fill, done)
     end
 end
 
+function Hud.drawHint(text)
+    if text == nil then
+        return
+    end
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(6, 216, 220, 20)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRect(6, 216, 220, 20)
+    gfx.drawText(text, 10, 218)
+end
+
 function Hud.drawUrges(pee, poo, didPee, didPoo)
     drawMeter(6, 6, pee, didPee)
     drawMeter(28, 6, poo, didPoo)

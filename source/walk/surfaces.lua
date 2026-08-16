@@ -88,7 +88,8 @@ function Surfaces:nearest(want, walkerX, maxDist)
         local p = self.patches[i]
         local legal = (want == "poo" and Surfaces.allowsPoo(p.kind))
             or (want == "pee" and Surfaces.allowsPee(p.kind) and not Surfaces.pooFails(p.kind))
-        if legal then
+        -- Skip patches the walker has already passed so Momo is not hauled back.
+        if legal and p.x + p.w >= walkerX then
             local cx = p.x + p.w / 2
             local d = math.abs(cx - walkerX)
             if d < bestD then
