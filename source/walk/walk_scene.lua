@@ -1,5 +1,9 @@
--- Walk 1 scene shell: auto-scroll sidewalk, commute clock, stub end cards.
--- Leash, Momo, and potty land in later tickets.
+-- Walk 1 scene: commute + two-body leash. Potty and encounters land later.
+
+import "CoreLibs/graphics"
+import "walk/leash"
+import "walk/walker"
+import "walk/momo"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -8,7 +12,6 @@ local SCREEN_W <const> = 400
 local SCREEN_H <const> = 240
 local TILE <const> = 32
 
--- Horizontal bands (tile-aligned). Yards / sidewalk / street.
 local YARDS_BOTTOM <const> = 96
 local SIDEWALK_BOTTOM <const> = 192
 
@@ -16,16 +19,16 @@ local SIDEWALK_BOTTOM <const> = 192
 local COMMUTE_SPEED <const> = 2
 local REFRESH_RATE <const> = 30
 
--- Walker stays at a fixed screen X; the world commutes past.
 local WALKER_SCREEN_X <const> = 80
-local WALKER_W <const> = 40
-local WALKER_H <const> = 48
 
--- Home is a world-space marker. Win stub fires when the walker arrives.
 local HOME_WORLD_X <const> = 2000
 local CLOCK_SECONDS <const> = 45
 
--- Vertical pipes: stable under horizontal scroll (not a flashing checker).
+-- Held B becomes Wait after this so a tap can still be Come.
+local WAIT_HOLD_FRAMES <const> = 8
+-- D-pad reel when the crank is unused (degrees/frame, same sign as getCrankChange).
+local A11Y_REEL_DEGREES <const> = 6
+
 local YARDS_PATTERN <const> = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}
 local STREET_PATTERN <const> = {0x55, 0x00, 0x55, 0x00, 0x55, 0x00, 0x55, 0x00}
 
@@ -37,6 +40,9 @@ WalkScene.__index = WalkScene
 
 function WalkScene.new()
     local self = setmetatable({}, WalkScene)
+    self.leash = Leash.new()
+    self.walker = Walker.new()
+    self.momo = Momo.new()
     self:reset()
     return self
 end
@@ -45,15 +51,46 @@ function WalkScene:reset()
     self.cameraX = 0
     self.clock = CLOCK_SECONDS
     self.state = "walking"
-    self.walkFrame = 0
+    self.bHold = 0
+    self.leash:reset()
+    self.walker:reset()
+    self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
 end
 
 function WalkScene:walkerWorldX()
     return self.cameraX + WALKER_SCREEN_X
 end
 
+function WalkScene:handWorld()
+    return self:walkerWorldX() + Walker.HAND_DX, SIDEWALK_BOTTOM + Walker.HAND_DY
+end
+
 function WalkScene:isDocked()
     return pd.isCrankDocked()
+end
+
+local function reelInput()
+    local degrees = pd.getCrankChange()
+    if pd.buttonIsPressed(pd.kButtonLeft) then
+        degrees -= A11Y_REEL_DEGREES
+    end
+    if pd.buttonIsPressed(pd.kButtonRight) then
+        degrees += A11Y_REEL_DEGREES
+    end
+    return degrees
+end
+
+function WalkScene:desiredMomo()
+    local wx = self:walkerWorldX()
+    local ahead = self.leash.length * 0.7
+    local desiredX = wx + ahead
+    local desiredY = SIDEWALK_BOTTOM
+    if pd.buttonIsPressed(pd.kButtonUp) then
+        desiredY = YARDS_BOTTOM - 8
+    elseif pd.buttonIsPressed(pd.kButtonDown) then
+        desiredY = SIDEWALK_BOTTOM + 24
+    end
+    return desiredX, desiredY
 end
 
 function WalkScene:update()
@@ -64,13 +101,44 @@ function WalkScene:update()
         return
     end
 
-    -- Docked: show the official crank indicator and do not commute or tick.
-    if self:isDocked() then
+    local docked = self:isDocked()
+    local degrees = reelInput()
+    self.leash:update(degrees, docked)
+
+    if pd.buttonJustPressed(pd.kButtonB) then
+        self.momo:come()
+        self.bHold = 0
+    end
+    if pd.buttonIsPressed(pd.kButtonB) then
+        self.bHold += 1
+    else
+        self.bHold = 0
+    end
+    self.walker.waiting = (not docked) and self.bHold >= WAIT_HOLD_FRAMES
+
+    if docked then
+        self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
+        self.walker.waiting = false
         return
     end
 
-    self.walkFrame += 1
-    self.cameraX += COMMUTE_SPEED
+    local desiredX, desiredY = self:desiredMomo()
+    local handX, handY = self:handWorld()
+    local taut = self.momo:update(
+        handX,
+        handY,
+        SIDEWALK_BOTTOM,
+        desiredX,
+        desiredY,
+        self.leash
+    )
+    if self.leash:isYank(degrees, taut, self.momo:isComing()) then
+        self.momo:yank()
+        self.walker:yank()
+    end
+
+    self.walker:update()
+    self.cameraX += COMMUTE_SPEED * self.walker:commuteScale()
     self.clock -= 1 / REFRESH_RATE
 
     if self.clock <= 0 then
@@ -95,7 +163,6 @@ local function drawYards(cameraX)
     gfx.setPattern(YARDS_PATTERN)
     gfx.fillRect(0, 0, SCREEN_W, YARDS_BOTTOM)
     gfx.setColor(gfx.kColorBlack)
-    -- Fence posts every 4 tiles so motion reads without becoming clutter.
     local first = math.floor(cameraX / (TILE * 4)) * (TILE * 4)
     for worldX = first, cameraX + SCREEN_W, TILE * 4 do
         local x = worldX - cameraX
@@ -141,23 +208,6 @@ local function drawHome(cameraX)
     gfx.drawText("home", x + 6, YARDS_BOTTOM - 80)
 end
 
-local function drawWalker(walkFrame)
-    local feetY = SIDEWALK_BOTTOM
-    local x = WALKER_SCREEN_X - WALKER_W / 2
-    local y = feetY - WALKER_H
-    -- Tiny bob so the commute reads while the sprite stays put on screen.
-    if walkFrame % 16 >= 8 then
-        y -= 1
-    end
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillRoundRect(x, y, WALKER_W, WALKER_H, 3)
-    gfx.setColor(gfx.kColorBlack)
-    gfx.drawRoundRect(x, y, WALKER_W, WALKER_H, 3)
-    gfx.fillCircleAtPoint(x + WALKER_W / 2, y + 10, 6)
-    gfx.drawLine(x + 12, y + 24, x + 12, y + 40)
-    gfx.drawLine(x + 28, y + 24, x + 28, y + 40)
-end
-
 local function drawClock(seconds)
     local label = formatClock(seconds)
     local w, h = 150, 22
@@ -194,7 +244,12 @@ function WalkScene:draw()
     drawSidewalk(self.cameraX)
     drawStreet(self.cameraX)
     drawHome(self.cameraX)
-    drawWalker(self.walkFrame)
+
+    self.walker:draw(WALKER_SCREEN_X, SIDEWALK_BOTTOM)
+    local handX, handY = self.walker:handScreen(WALKER_SCREEN_X, SIDEWALK_BOTTOM)
+    local collarX, collarY = self.momo:collarScreen(self.cameraX)
+    self.leash:draw(handX, handY, collarX, collarY)
+    self.momo:draw(self.cameraX)
     drawClock(self.clock)
 
     if self:isDocked() then
