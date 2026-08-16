@@ -67,7 +67,7 @@ function playdate.update()
         playerY = ring(playerY, -playerSize, 240 + playerSize)
     end
     -- Draw text
-    gfx.drawTextAligned("Template configured!", 200, 30, kTextAlignment.center)
+    gfx.drawTextAligned("Go Momo Go", 200, 30, kTextAlignment.center)
     -- Draw player
     playerImage:drawAnchored(playerX, playerY, 0.5, 0.5)
 end
