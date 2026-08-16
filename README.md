@@ -1,8 +1,12 @@
 # Go Momo Go
 
-A [Playdate](https://play.date) game in Lua. Development environment is Visual Studio Code with automated builds, autocomplete, and debugging (Windows, Mac, and Linux). Started from [SquidGod’s playdate-template](https://github.com/SquidGodDev/playdate-template).
+A [Playdate](https://play.date) game in Lua. You walk Momo, a tan double-doodle; the crank is his leash. Get him to *go* before work without losing him to mean dogs, grandmas, or his own nose.
 
-**Status:** stock crank demo while the game is being built. Docked crank shows **Go Momo Go**; undock and crank to move.
+Concept, mechanics, story, and v1 scope: **[docs/game-design.md](docs/game-design.md)**.
+
+Development environment is Visual Studio Code with automated builds, autocomplete, and debugging (Windows, Mac, and Linux). Started from [SquidGod’s playdate-template](https://github.com/SquidGodDev/playdate-template).
+
+**Status:** design documented; the running build is still the stock crank demo (docked crank shows **Go Momo Go**; undock and crank to move) until the walk-scene PRs land.
 
 This repo includes a copy of [playdate-luacats](https://github.com/notpeter/playdate-luacats) by notpeter, licensed under the MIT license. Template video: https://youtu.be/UZ04rk3lLqU
 
@@ -88,6 +92,8 @@ Game metadata lives in `source/pdxinfo`. See [System and Game Metadata](https://
   - `launch.json` - Defines what `Run and Debug` should do
   - `tasks.json` - Defines what `Run Build Task...` should do
 - `builds` - Compiled `.pdx` output (gitignored)
+- `docs` - Game design and other project docs
+  - `game-design.md` - Concept, mechanics, story, assets, v1 build order
 - `source` - Game code and assets
   - `main.lua` - Entry point
   - `pdxinfo` - Playdate catalog metadata
