@@ -1,6 +1,6 @@
-name=Game
-author=
-description=
-bundleID=
-version=1.0.0
+name=Go Momo Go
+author=Mike Ornstein
+description=A Playdate game
+bundleID=com.mikeornstein.gomomogo
+version=0.1.0
 buildNumber=1
