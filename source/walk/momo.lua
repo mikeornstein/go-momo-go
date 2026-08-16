@@ -13,6 +13,7 @@ local PEE_FRAMES <const> = 24
 local CIRCLE_FRAMES <const> = 18
 local SQUAT_FRAMES <const> = 36
 local REFUSE_FRAMES <const> = 20
+local SNIFF_FRAMES <const> = 30
 local COOLDOWN_FRAMES <const> = 90
 local DRAG_INTERRUPT <const> = 12
 local MIN_Y <const> = 28
@@ -52,7 +53,7 @@ end
 
 function Momo:isCommitted()
     local s = self.state
-    return s == "pee" or s == "circle" or s == "squat" or s == "refuse"
+    return s == "pee" or s == "circle" or s == "squat" or s == "refuse" or s == "sniff"
 end
 
 function Momo:isBusy()
@@ -99,6 +100,14 @@ function Momo:beginCircle()
     self.pottyY = self.worldY
 end
 
+function Momo:beginSniff()
+    self.state = "sniff"
+    self.goKind = "sniff"
+    self.goFrames = SNIFF_FRAMES
+    self.pottyX = self.worldX
+    self.pottyY = self.worldY
+end
+
 function Momo:beginRefuse()
     self.state = "refuse"
     self.goKind = "refuse"
@@ -141,6 +150,8 @@ function Momo:tickGo()
         self.event = "pooed"
     elseif self.state == "refuse" then
         self.event = "refused"
+    elseif self.state == "sniff" then
+        self.event = "sniffed"
     end
     self.eventX = self.worldX
     self.eventY = self.worldY
@@ -260,6 +271,11 @@ function Momo:draw(cameraX)
         local grow = 1 - (self.goFrames / SQUAT_FRAMES)
         local r = 3 + math.floor(grow * 5)
         gfx.fillCircleAtPoint(x + 12, y + 38, r)
+    elseif self.state == "sniff" then
+        -- Nose down + sniff ticks.
+        gfx.drawLine(x + 8, y + 22, x + 18, y + 30)
+        gfx.drawLine(x + 16, y + 18, x + 22, y + 16)
+        gfx.drawLine(x + 16, y + 22, x + 22, y + 22)
     elseif self.state == "refuse" then
         gfx.drawText("...", x - 8, y - 14)
     elseif self.yankFrames > 0 or self.event == "interrupted" then

@@ -7,6 +7,7 @@ import "walk/momo"
 import "walk/surfaces"
 import "walk/hud"
 import "walk/mess"
+import "walk/peemail"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -55,6 +56,7 @@ function WalkScene.new()
     self.momo = Momo.new()
     self.surfaces = Surfaces.walk1()
     self.mess = Mess.new()
+    self.peemail = Peemail.walk1()
     self:reset()
     return self
 end
@@ -71,6 +73,7 @@ function WalkScene:reset()
     self.pickedUp = false
     self.leash:reset()
     self.mess:reset()
+    self.peemail:reset()
     self.walker:reset()
     self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
 end
@@ -119,6 +122,10 @@ function WalkScene:desiredMomo()
         if tx then
             return tx, ty
         end
+    end
+    local mx, my = self.peemail:nearestUnread(wx, self.leash.length + 48)
+    if mx then
+        return mx, my
     end
     return desiredX, desiredY
 end
@@ -202,6 +209,7 @@ function WalkScene:update()
 
     self:handleGoEvent()
     self.mess:update()
+    self.peemail:update()
 
     self.walker:update()
     self.cameraX += COMMUTE_SPEED * self.walker:commuteScale()
@@ -225,6 +233,11 @@ end
 
 function WalkScene:tryStartGo()
     if self.momo:isBusy() then
+        return
+    end
+    local mail = self.peemail:at(self.momo.worldX, self.momo.worldY)
+    if mail and not mail.read then
+        self.momo:beginSniff()
         return
     end
     local kind, patch = self.surfaces:at(self.momo.worldX, self.momo.worldY)
@@ -253,7 +266,20 @@ function WalkScene:handleGoEvent()
         return
     end
     local kind, patch = self.surfaces:at(self.momo.worldX, self.momo.worldY)
-    if event == "peed" then
+    if event == "sniffed" then
+        local mail = self.peemail:at(self.momo.eventX, self.momo.eventY)
+            or self.peemail:at(self.momo.worldX, self.momo.worldY)
+        if mail then
+            mail.read = true
+            self.peemail:show(mail.text)
+            if not self.didPee then
+                self.pee = math.min(1, self.pee + 0.2)
+            end
+            if (not self.didPee) and self.pee >= PEE_GO then
+                self.momo:beginPee()
+            end
+        end
+    elseif event == "peed" then
         self.pee = 0
         self.didPee = true
         self.mess:add("pee", self.momo.eventX, self.momo.eventY)
@@ -356,6 +382,7 @@ function WalkScene:draw()
     drawSidewalk(self.cameraX)
     drawStreet(self.cameraX)
     self.surfaces:drawProps(self.cameraX, SCREEN_W)
+    self.peemail:draw(self.cameraX, SCREEN_W)
     drawHome(self.cameraX)
     self.mess:draw(self.cameraX)
 
@@ -366,6 +393,7 @@ function WalkScene:draw()
     self.momo:draw(self.cameraX)
     Hud.drawClock(self.clock)
     Hud.drawUrges(self.pee, self.poo, self.didPee, self.didPoo)
+    Hud.drawBanner(self.peemail.banner)
     if self.mess:nearPoo(self:walkerWorldX()) then
         Hud.drawHint("A to bag")
     elseif self.momo:isCommitted() then

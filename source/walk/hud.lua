@@ -38,6 +38,17 @@ local function drawMeter(x, y, fill, done)
     end
 end
 
+function Hud.drawBanner(text)
+    if text == nil then
+        return
+    end
+    gfx.setColor(gfx.kColorWhite)
+    gfx.fillRect(8, 42, 384, 28)
+    gfx.setColor(gfx.kColorBlack)
+    gfx.drawRect(8, 42, 384, 28)
+    gfx.drawTextAligned(text, 200, 48, kTextAlignment.center)
+end
+
 function Hud.drawHint(text)
     if text == nil then
         return
