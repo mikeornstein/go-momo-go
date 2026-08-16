@@ -6,7 +6,7 @@ Concept, mechanics, story, and v1 scope: **[docs/game-design.md](docs/game-desig
 
 Development environment is Visual Studio Code with automated builds, autocomplete, and debugging (Windows, Mac, and Linux). Started from [SquidGod’s playdate-template](https://github.com/SquidGodDev/playdate-template).
 
-**Status:** design documented; the running build is still the stock crank demo (docked crank shows **Go Momo Go**; undock and crank to move) until the walk-scene PRs land.
+**Status:** Walk 1 scene shell is in. Docked crank shows the official indicator and holds the commute; undock to auto-scroll the sidewalk against a 45s clock. Reaching home stubs **Good boy.**; the clock hitting zero stubs **He can hold it. You cannot.** Leash, Momo, and potty are next.
 
 This repo includes a copy of [playdate-luacats](https://github.com/notpeter/playdate-luacats) by notpeter, licensed under the MIT license. Template video: https://youtu.be/UZ04rk3lLqU
 
@@ -95,7 +95,8 @@ Game metadata lives in `source/pdxinfo`. See [System and Game Metadata](https://
 - `docs` - Game design and other project docs
   - `game-design.md` - Concept, mechanics, story, assets, v1 build order
 - `source` - Game code and assets
-  - `main.lua` - Entry point
+  - `main.lua` - Entry point; boots the walk scene
+  - `walk/walk_scene.lua` - Sidewalk commute, clock, stub end cards
   - `pdxinfo` - Playdate catalog metadata
 - `test/screenshots` - Agent reference framebuffers (400×240, no Simulator chrome)
 
