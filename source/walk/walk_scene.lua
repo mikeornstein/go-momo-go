@@ -6,6 +6,7 @@ import "walk/walker"
 import "walk/momo"
 import "walk/surfaces"
 import "walk/hud"
+import "walk/mess"
 
 local pd <const> = playdate
 local gfx <const> = playdate.graphics
@@ -42,6 +43,7 @@ local STREET_PATTERN <const> = {0x55, 0x00, 0x55, 0x00, 0x55, 0x00, 0x55, 0x00}
 local WIN_COPY <const> = "Good boy."
 local LOSE_COPY <const> = "He can hold it. You cannot."
 local GNOME_COPY <const> = "The gnome saw everything."
+local LEFT_IT_COPY <const> = "You left it."
 
 WalkScene = {}
 WalkScene.__index = WalkScene
@@ -52,6 +54,7 @@ function WalkScene.new()
     self.walker = Walker.new()
     self.momo = Momo.new()
     self.surfaces = Surfaces.walk1()
+    self.mess = Mess.new()
     self:reset()
     return self
 end
@@ -65,7 +68,9 @@ function WalkScene:reset()
     self.poo = 0.2
     self.didPee = false
     self.didPoo = false
+    self.pickedUp = false
     self.leash:reset()
+    self.mess:reset()
     self.walker:reset()
     self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
 end
@@ -141,6 +146,15 @@ function WalkScene:update()
     end
     self.walker.waiting = (not docked) and self.bHold >= WAIT_HOLD_FRAMES
 
+    if (not docked) and pd.buttonJustPressed(pd.kButtonA) then
+        local pile = self.mess:nearPoo(self:walkerWorldX())
+        if pile then
+            pile.bagged = true
+            self.pickedUp = true
+            self.walker:bag()
+        end
+    end
+
     if docked then
         self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
         self.walker.waiting = false
@@ -187,6 +201,7 @@ function WalkScene:update()
     end
 
     self:handleGoEvent()
+    self.mess:update()
 
     self.walker:update()
     self.cameraX += COMMUTE_SPEED * self.walker:commuteScale()
@@ -200,7 +215,9 @@ function WalkScene:update()
 
     if self:walkerWorldX() >= HOME_WORLD_X then
         self.cameraX = HOME_WORLD_X - WALKER_SCREEN_X
-        if self.didPee and self.didPoo then
+        if self.didPoo and self.mess:hasUnbaggedPoo() then
+            self.state = "leftit"
+        elseif self.didPee and self.didPoo and self.pickedUp then
             self.state = "win"
         end
     end
@@ -239,12 +256,14 @@ function WalkScene:handleGoEvent()
     if event == "peed" then
         self.pee = 0
         self.didPee = true
+        self.mess:add("pee", self.momo.eventX, self.momo.eventY)
     elseif event == "pooed" then
         if Surfaces.pooFails(kind) then
             self.state = "gnome"
         else
             self.poo = 0
             self.didPoo = true
+            self.mess:add("poo", self.momo.eventX, self.momo.eventY)
         end
     elseif event == "refused" or event == "interrupted" then
         self.momo:setCooldown(patch)
@@ -324,6 +343,10 @@ function WalkScene:draw()
         drawEndCard(GNOME_COPY)
         return
     end
+    if self.state == "leftit" then
+        drawEndCard(LEFT_IT_COPY)
+        return
+    end
 
     gfx.setColor(gfx.kColorWhite)
     gfx.fillRect(0, 0, SCREEN_W, SCREEN_H)
@@ -334,6 +357,7 @@ function WalkScene:draw()
     drawStreet(self.cameraX)
     self.surfaces:drawProps(self.cameraX, SCREEN_W)
     drawHome(self.cameraX)
+    self.mess:draw(self.cameraX)
 
     self.walker:draw(WALKER_SCREEN_X, SIDEWALK_BOTTOM)
     local handX, handY = self.walker:handScreen(WALKER_SCREEN_X, SIDEWALK_BOTTOM)
@@ -342,7 +366,9 @@ function WalkScene:draw()
     self.momo:draw(self.cameraX)
     Hud.drawClock(self.clock)
     Hud.drawUrges(self.pee, self.poo, self.didPee, self.didPoo)
-    if self.momo:isCommitted() then
+    if self.mess:nearPoo(self:walkerWorldX()) then
+        Hud.drawHint("A to bag")
+    elseif self.momo:isCommitted() then
         Hud.drawHint("waiting — B tap cancels")
     elseif self.walker.waiting then
         Hud.drawHint("waiting")

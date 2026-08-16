@@ -5,6 +5,7 @@ local gfx <const> = playdate.graphics
 local WIDTH <const> = 40
 local HEIGHT <const> = 48
 local YANK_FRAMES <const> = 14
+local BAG_FRAMES <const> = 16
 local HAND_DX <const> = 12
 local HAND_DY <const> = -28
 
@@ -24,6 +25,7 @@ end
 function Walker:reset()
     self.waiting = false
     self.yankFrames = 0
+    self.bagFrames = 0
     self.walkFrame = 0
 end
 
@@ -31,7 +33,14 @@ function Walker:yank()
     self.yankFrames = YANK_FRAMES
 end
 
+function Walker:bag()
+    self.bagFrames = BAG_FRAMES
+end
+
 function Walker:commuteScale()
+    if self.bagFrames > 0 then
+        return 0
+    end
     if self.yankFrames > 0 then
         return 0.25
     end
@@ -45,6 +54,9 @@ function Walker:update()
     if self.yankFrames > 0 then
         self.yankFrames -= 1
     end
+    if self.bagFrames > 0 then
+        self.bagFrames -= 1
+    end
     if self:commuteScale() > 0 then
         self.walkFrame += 1
     end
@@ -53,7 +65,9 @@ end
 function Walker:draw(screenX, feetY)
     local x = screenX - WIDTH / 2
     local y = feetY - HEIGHT
-    if (not self.waiting) and self.yankFrames == 0 and self.walkFrame % 16 >= 8 then
+    if self.bagFrames > 0 then
+        y += 8
+    elseif (not self.waiting) and self.yankFrames == 0 and self.walkFrame % 16 >= 8 then
         y -= 1
     end
     gfx.setColor(gfx.kColorWhite)
