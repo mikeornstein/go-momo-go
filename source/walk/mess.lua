@@ -34,7 +34,21 @@ function Mess:update()
     end
 end
 
-function Mess:nearPoo(walkerX)
+function Mess:nearPoo(walkerX, walkerY)
+    for i = 1, #self.marks do
+        local m = self.marks[i]
+        if m.kind == "poo" and not m.bagged then
+            local dx = m.x - walkerX
+            local dy = m.y - walkerY
+            if (dx * dx + dy * dy) <= (PICKUP_RANGE * PICKUP_RANGE) then
+                return m
+            end
+        end
+    end
+    return nil
+end
+
+function Mess:nearPooX(walkerX)
     for i = 1, #self.marks do
         local m = self.marks[i]
         if m.kind == "poo" and (not m.bagged) and math.abs(m.x - walkerX) <= PICKUP_RANGE then
