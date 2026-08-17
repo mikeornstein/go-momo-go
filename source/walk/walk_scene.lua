@@ -1,4 +1,4 @@
--- Walk 1 scene: commute, walker lanes, leash slack, and Momo's wants.
+-- Walk 1 scene: d-pad walker, leash slack, and Momo's wants.
 
 import "CoreLibs/graphics"
 import "walk/leash"
@@ -20,7 +20,7 @@ local YARDS_BOTTOM <const> = 96
 local SIDEWALK_BOTTOM <const> = 192
 
 -- 2 px/frame keeps 1-bit patterns locked under horizontal scroll.
-local COMMUTE_SPEED <const> = 2
+local WALK_SPEED <const> = 2
 local REFRESH_RATE <const> = 30
 
 local WALKER_SCREEN_X <const> = 80
@@ -33,12 +33,8 @@ local POO_RATE <const> = 1 / 18
 local PEE_GO <const> = 0.8
 local POO_GO <const> = 0.85
 
--- Held B becomes Wait after this so a tap can still be Come.
+-- Held B becomes Come-vs-wait threshold so a tap can still be Come.
 local WAIT_HOLD_FRAMES <const> = 8
--- D-pad reel when the crank is unused (degrees/frame, same sign as getCrankChange).
-local A11Y_REEL_DEGREES <const> = 6
--- 2 px/frame matches commute so 1-bit patterns stay locked when stepping lanes.
-local WALKER_LANE_SPEED <const> = 2
 local WALKER_MIN_Y <const> = YARDS_BOTTOM
 local WALKER_MAX_Y <const> = SIDEWALK_BOTTOM + 28
 
@@ -91,11 +87,29 @@ function WalkScene:handWorld()
 end
 
 function WalkScene:steerWalker()
+    local scale = self.walker:walkScale()
+    local dx, dy = 0, 0
+    if pd.buttonIsPressed(pd.kButtonLeft) then
+        dx -= 1
+    end
+    if pd.buttonIsPressed(pd.kButtonRight) then
+        dx += 1
+    end
     if pd.buttonIsPressed(pd.kButtonUp) then
-        self.walker.feetY -= WALKER_LANE_SPEED
+        dy -= 1
     end
     if pd.buttonIsPressed(pd.kButtonDown) then
-        self.walker.feetY += WALKER_LANE_SPEED
+        dy += 1
+    end
+    self.walker.stepping = (dx ~= 0 or dy ~= 0) and scale > 0
+    self.cameraX += dx * WALK_SPEED * scale
+    self.walker.feetY += dy * WALK_SPEED * scale
+    if self.cameraX < 0 then
+        self.cameraX = 0
+    end
+    local maxCam = HOME_WORLD_X - WALKER_SCREEN_X
+    if self.cameraX > maxCam then
+        self.cameraX = maxCam
     end
     if self.walker.feetY < WALKER_MIN_Y then
         self.walker.feetY = WALKER_MIN_Y
@@ -104,19 +118,33 @@ function WalkScene:steerWalker()
     end
 end
 
+-- When Momo is planted, slack pulls the walker back instead of hauling him.
+function WalkScene:holdWalkerToLeash()
+    local handX, handY = self:handWorld()
+    local collarX, collarY = self.momo:collarWorld()
+    local hx, hy, taut = self.leash:constrain(collarX, collarY, handX, handY)
+    if not taut then
+        return false
+    end
+    self.cameraX = (hx - Walker.HAND_DX) - WALKER_SCREEN_X
+    self.walker.feetY = hy - Walker.HAND_DY
+    if self.cameraX < 0 then
+        self.cameraX = 0
+    end
+    if self.walker.feetY < WALKER_MIN_Y then
+        self.walker.feetY = WALKER_MIN_Y
+    elseif self.walker.feetY > WALKER_MAX_Y then
+        self.walker.feetY = WALKER_MAX_Y
+    end
+    return true
+end
+
 function WalkScene:isDocked()
     return pd.isCrankDocked()
 end
 
 local function reelInput()
-    local degrees = pd.getCrankChange()
-    if pd.buttonIsPressed(pd.kButtonLeft) then
-        degrees -= A11Y_REEL_DEGREES
-    end
-    if pd.buttonIsPressed(pd.kButtonRight) then
-        degrees += A11Y_REEL_DEGREES
-    end
-    return degrees
+    return pd.getCrankChange()
 end
 
 function WalkScene:update()
@@ -156,6 +184,12 @@ function WalkScene:update()
     if docked then
         self.momo:reset(self:walkerWorldX(), self.walker.feetY)
         self.walker.waiting = false
+        self.walker:update()
+        self.clock -= 1 / REFRESH_RATE
+        if self.clock <= 0 then
+            self.clock = 0
+            self.state = "lose"
+        end
         return
     end
 
@@ -182,16 +216,12 @@ function WalkScene:update()
         walkerX = self:walkerWorldX(),
     })
 
-    -- Once he starts to go, the commute pauses so slack is enough to finish.
-    -- Yank / Come still interrupt.
     if self.momo:isCommitted() then
-        self.walker.waiting = true
+        taut = self:holdWalkerToLeash() or taut
     end
 
-    local moving = self.walker:commuteScale() > 0
-    if self.leash:isYank(degrees, taut, self.momo:isComing())
-        or (self.momo:isCommitted() and taut and moving)
-    then
+    -- Crank wind-in while taut still yanks. Walking into slack does not.
+    if self.leash:isYank(degrees, taut, self.momo:isComing()) then
         local _, patch = self.surfaces:at(self.momo.worldX, self.momo.worldY)
         if self.momo:isCommitted() then
             self.momo:setCooldown(patch)
@@ -205,7 +235,6 @@ function WalkScene:update()
     self.peemail:update()
 
     self.walker:update()
-    self.cameraX += COMMUTE_SPEED * self.walker:commuteScale()
     self.clock -= 1 / REFRESH_RATE
 
     if self.clock <= 0 then
@@ -392,11 +421,9 @@ function WalkScene:draw()
     elseif self.mess:nearPooX(self:walkerWorldX()) then
         Hud.drawHint("up onto the lawn")
     elseif self.momo:isCommitted() then
-        Hud.drawHint("waiting — B tap cancels")
-    elseif self.walker.waiting then
-        Hud.drawHint("waiting")
+        Hud.drawHint("B tap cancels")
     else
-        Hud.drawHint("hold B to wait")
+        Hud.drawHint("d-pad walk · crank reel")
     end
 
     if self:isDocked() then

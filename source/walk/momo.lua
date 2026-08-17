@@ -16,7 +16,6 @@ local SQUAT_FRAMES <const> = 36
 local REFUSE_FRAMES <const> = 20
 local SNIFF_FRAMES <const> = 30
 local COOLDOWN_FRAMES <const> = 90
-local DRAG_INTERRUPT <const> = 12
 local MIN_Y <const> = 28
 local MAX_Y <const> = 228
 
@@ -309,6 +308,11 @@ function Momo:update(ctx)
 
     if committed then
         self:tickGo()
+        -- Planted: stay on the spot. Slack holds the walker, not him.
+        if self.pottyX then
+            self.worldX = self.pottyX
+            self.worldY = self.pottyY
+        end
     elseif self.yankFrames == 0 then
         local dx = desiredX - self.worldX
         local dy = desiredY - self.worldY
@@ -330,18 +334,11 @@ function Momo:update(ctx)
     end
 
     local collarX, collarY = self:collarWorld()
-    local taut
-    collarX, collarY, taut = ctx.leash:constrain(ctx.handX, ctx.handY, collarX, collarY)
-    self.worldX = collarX
-    self.worldY = collarY + 16
-
-    if self:isCommitted() and self.pottyX then
-        local ddx = self.worldX - self.pottyX
-        local ddy = self.worldY - self.pottyY
-        if (ddx * ddx + ddy * ddy) > (DRAG_INTERRUPT * DRAG_INTERRUPT) then
-            self:interrupt()
-            taut = true
-        end
+    local taut = ctx.leash:isTaut(ctx.handX, ctx.handY, collarX, collarY)
+    if not committed then
+        collarX, collarY, taut = ctx.leash:constrain(ctx.handX, ctx.handY, collarX, collarY)
+        self.worldX = collarX
+        self.worldY = collarY + 16
     end
 
     if not self:isBusy() then

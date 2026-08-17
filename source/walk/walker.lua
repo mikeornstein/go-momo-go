@@ -1,4 +1,4 @@
--- Greybox walker. Wait stops the commute; U/D steps off the sidewalk.
+-- Greybox walker. D-pad walks; a yank tugs (slows) briefly.
 
 local gfx <const> = playdate.graphics
 
@@ -25,6 +25,7 @@ end
 
 function Walker:reset()
     self.waiting = false
+    self.stepping = false
     self.yankFrames = 0
     self.bagFrames = 0
     self.walkFrame = 0
@@ -39,15 +40,12 @@ function Walker:bag()
     self.bagFrames = BAG_FRAMES
 end
 
-function Walker:commuteScale()
+function Walker:walkScale()
     if self.bagFrames > 0 then
         return 0
     end
     if self.yankFrames > 0 then
         return 0.25
-    end
-    if self.waiting then
-        return 0
     end
     return 1
 end
@@ -59,7 +57,7 @@ function Walker:update()
     if self.bagFrames > 0 then
         self.bagFrames -= 1
     end
-    if self:commuteScale() > 0 then
+    if self.stepping and self:walkScale() > 0 then
         self.walkFrame += 1
     end
 end
@@ -69,7 +67,7 @@ function Walker:draw(screenX, feetY)
     local y = feetY - HEIGHT
     if self.bagFrames > 0 then
         y += 8
-    elseif (not self.waiting) and self.yankFrames == 0 and self.walkFrame % 16 >= 8 then
+    elseif self.stepping and self.yankFrames == 0 and self.walkFrame % 16 >= 8 then
         y -= 1
     end
     gfx.setColor(gfx.kColorWhite)

@@ -6,7 +6,7 @@ Concept, mechanics, story, and v1 scope: **[docs/game-design.md](docs/game-desig
 
 Development environment is Visual Studio Code with automated builds, autocomplete, and debugging (Windows, Mac, and Linux). Started from [SquidGod’s playdate-template](https://github.com/SquidGodDev/playdate-template).
 
-**Status:** Walk, leash, go, and pee-mail are in. You walk the person and reel the leash; Momo picks the spot. Give him slack to sniff; step onto the lawn to bag. Encounters are next.
+**Status:** Walk, leash, go, and pee-mail are in. D-pad walks the person; the crank is the leash; Momo picks the spot. He plants for a sniff or a go — slack holds you, not him. Encounters are next.
 
 This repo includes a copy of [playdate-luacats](https://github.com/notpeter/playdate-luacats) by notpeter, licensed under the MIT license. Template video: https://youtu.be/UZ04rk3lLqU
 
