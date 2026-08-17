@@ -1,12 +1,13 @@
 # References
 
-Photos that lock identity. Not engine art. Do not copy into `source/` (pdc would ship them).
+Not engine art. Do not copy into `source/` (pdc would ship them).
 
 | Path | Lock |
 | --- | --- |
-| `momo/` | The real apricot double-doodle. All Momo sheets and concept stills edit-chain from these. |
+| `momo/` | The real apricot double-doodle. Likeness check. |
+| `imagine_momo/` | **Starter 1-bit cartoon.** Seed every new Momo still from `imagine_momo/momo-stand.jpg`. |
 
-Best stills to seed Imagine:
+Photo stills (likeness only):
 
 - Side / body: `momo/off leash.jpeg`
 - Face, chest stripe, socks: `momo/sitting.jpeg`

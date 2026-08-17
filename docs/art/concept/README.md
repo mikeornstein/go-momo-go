@@ -1,20 +1,22 @@
 # Concept stills
 
-Style-anchor frames for [art-direction.md](../../art-direction.md). Direction locks, not engine sprites. Momo is edit-chained from [`reference/momo/`](../../../reference/momo/).
+Style-anchor frames for [art-direction.md](../../art-direction.md). Direction locks, not engine sprites.
+
+Momo’s 1-bit lock is [`reference/imagine_momo/`](../../../reference/imagine_momo/). Photos in [`reference/momo/`](../../../reference/momo/) are the likeness check only.
 
 | File | Lock |
 | --- | --- |
-| `momo-side.png` | Canonical Momo (from `off leash` + `sitting`) |
-| `momo-squat.png` | Squat silhouette (from `squatting`) |
-| `momo-sniff.png` | Sniff silhouette |
-| `walk-slice.png` | Block + walker + leash |
-| `gnome-bumper.png` | Gnome end-card picture (punchline is type, not pixels) |
+| `momo-stand.png` | Canonical stand (also copied as `momo-side.png`) |
+| `momo-sniff.png` | Sniff |
+| `momo-squat.png` | Squat hold |
+| `momo-lift-leg.png` | Lift-leg |
+| `momo-pee.png` | Lift-leg + puddle |
+| `momo-pooed.png` | Sit + coiled pile |
+| `walk-slice.png` | Block + walker + leash — **stale dog**; re-chain from `momo-stand` |
+| `gnome-bumper.png` | Gnome bumper — **stale dog**; re-chain from `momo-stand` |
 
-## Known defects (honest QA)
+## Known defects
 
-These are Imagine drafts. Engine art must FatBits-clean them.
-
-- Grey anti-alias on outlines. Illegal in-game; keep the *shapes*.
-- `momo-side.png` plume still sits a bit high vs `off leash.jpeg`. Socks, ringlets, bangs, and nose are the lock.
-- `walk-slice.png` walker/houses still carry grey fills. Hydrant, chevron windbreaker, three-band stage, and this Momo are the lock.
-- `gnome-bumper.png` lawn is still tinted and more top-down than side-view. Gnome face + matching doodle are the lock.
+- `walk-slice.png` and `gnome-bumper.png` still show the previous doodle. Next Imagine pass must `image_edit` them from `momo-stand.png`.
+- Stipple must stay locked to the sprite (not a 2×2 that strobes).
+- Engine art FatBits-cleans outlines to a true 3 px cel.
