@@ -230,7 +230,7 @@ See [AGENTS.md](../AGENTS.md) for Simulator, screenshot, and device-check workfl
 
 ## Asset list
 
-Generate in later art tickets. All 1-bit, chunky silhouettes, pocket-readable at 173 ppi.
+Look is specified in **[art-direction.md](art-direction.md)** (1996 Nicktoon / FatBits / pet-toy). Generate in later art tickets against that bible and the concept stills in `docs/art/concept/`. All 1-bit, chunky silhouettes, pocket-readable at 173 ppi.
 
 ### Characters (image tables, not runtime transforms)
 
@@ -346,7 +346,7 @@ Ticket-driven. One issue per vertical slice. Branches `docs/N-…` / `feat/N-…
 | 5 | Pee-mail: sniff spots, one-line HUD, optional reply, one telegraph message |
 | 6 | Mean dogs + grandma: heel-pass vs tangle fail; lock, extract, loved drain |
 | 7 | Walk 1 layout: hydrant → pee-mail → grandma → dog → nice lawn → home; squirrel + forbidden lawn |
-| 8 | Momo art + launcher card (title in the card); device check |
+| 8 | Art direction bible + Imagine concept stills; then Momo art + launcher card (title in the card); device check |
 | 9 | Audio, menu image, accessibility bindings |
 
 ---

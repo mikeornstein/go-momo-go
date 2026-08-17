@@ -94,6 +94,7 @@ Game metadata lives in `source/pdxinfo`. See [System and Game Metadata](https://
 - `builds` - Compiled `.pdx` output (gitignored)
 - `docs` - Game design and other project docs
   - `game-design.md` - Concept, mechanics, story, assets, v1 build order
+  - `art-direction.md` - 90s visual bible, Imagine prompts, concept stills
 - `source` - Game code and assets
   - `main.lua` - Entry point; boots the walk scene
   - `walk/walk_scene.lua` - Sidewalk commute, clock, stub end cards
