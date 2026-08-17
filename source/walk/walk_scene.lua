@@ -1,4 +1,4 @@
--- Walk 1 scene: commute, leash, surfaces, and the go loop.
+-- Walk 1 scene: commute, walker lanes, leash slack, and Momo's wants.
 
 import "CoreLibs/graphics"
 import "walk/leash"
@@ -37,6 +37,10 @@ local POO_GO <const> = 0.85
 local WAIT_HOLD_FRAMES <const> = 8
 -- D-pad reel when the crank is unused (degrees/frame, same sign as getCrankChange).
 local A11Y_REEL_DEGREES <const> = 6
+-- 2 px/frame matches commute so 1-bit patterns stay locked when stepping lanes.
+local WALKER_LANE_SPEED <const> = 2
+local WALKER_MIN_Y <const> = YARDS_BOTTOM
+local WALKER_MAX_Y <const> = SIDEWALK_BOTTOM + 28
 
 local YARDS_PATTERN <const> = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}
 local STREET_PATTERN <const> = {0x55, 0x00, 0x55, 0x00, 0x55, 0x00, 0x55, 0x00}
@@ -75,7 +79,7 @@ function WalkScene:reset()
     self.mess:reset()
     self.peemail:reset()
     self.walker:reset()
-    self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
+    self.momo:reset(self:walkerWorldX(), self.walker.feetY)
 end
 
 function WalkScene:walkerWorldX()
@@ -83,7 +87,21 @@ function WalkScene:walkerWorldX()
 end
 
 function WalkScene:handWorld()
-    return self:walkerWorldX() + Walker.HAND_DX, SIDEWALK_BOTTOM + Walker.HAND_DY
+    return self:walkerWorldX() + Walker.HAND_DX, self.walker.feetY + Walker.HAND_DY
+end
+
+function WalkScene:steerWalker()
+    if pd.buttonIsPressed(pd.kButtonUp) then
+        self.walker.feetY -= WALKER_LANE_SPEED
+    end
+    if pd.buttonIsPressed(pd.kButtonDown) then
+        self.walker.feetY += WALKER_LANE_SPEED
+    end
+    if self.walker.feetY < WALKER_MIN_Y then
+        self.walker.feetY = WALKER_MIN_Y
+    elseif self.walker.feetY > WALKER_MAX_Y then
+        self.walker.feetY = WALKER_MAX_Y
+    end
 end
 
 function WalkScene:isDocked()
@@ -99,35 +117,6 @@ local function reelInput()
         degrees += A11Y_REEL_DEGREES
     end
     return degrees
-end
-
-function WalkScene:desiredMomo()
-    local wx = self:walkerWorldX()
-    local desiredX = wx + self.leash.length * 0.7
-    local desiredY = SIDEWALK_BOTTOM
-    if pd.buttonIsPressed(pd.kButtonUp) then
-        return desiredX, YARDS_BOTTOM - 8
-    end
-    if pd.buttonIsPressed(pd.kButtonDown) then
-        return desiredX, SIDEWALK_BOTTOM + 24
-    end
-    local want = nil
-    if (not self.didPoo) and self.poo >= POO_GO then
-        want = "poo"
-    elseif (not self.didPee) and self.pee >= PEE_GO then
-        want = "pee"
-    end
-    if want then
-        local tx, ty = self.surfaces:nearest(want, wx, self.leash.length + 48)
-        if tx then
-            return tx, ty
-        end
-    end
-    local mx, my = self.peemail:nearestUnread(wx, self.leash.length + 48)
-    if mx then
-        return mx, my
-    end
-    return desiredX, desiredY
 end
 
 function WalkScene:update()
@@ -153,8 +142,10 @@ function WalkScene:update()
     end
     self.walker.waiting = (not docked) and self.bHold >= WAIT_HOLD_FRAMES
 
+    self:steerWalker()
+
     if (not docked) and pd.buttonJustPressed(pd.kButtonA) then
-        local pile = self.mess:nearPoo(self:walkerWorldX())
+        local pile = self.mess:nearPoo(self:walkerWorldX(), self.walker.feetY)
         if pile then
             pile.bagged = true
             self.pickedUp = true
@@ -163,7 +154,7 @@ function WalkScene:update()
     end
 
     if docked then
-        self.momo:reset(self:walkerWorldX(), SIDEWALK_BOTTOM)
+        self.momo:reset(self:walkerWorldX(), self.walker.feetY)
         self.walker.waiting = false
         return
     end
@@ -178,16 +169,18 @@ function WalkScene:update()
         self:tryStartGo()
     end
 
-    local desiredX, desiredY = self:desiredMomo()
     local handX, handY = self:handWorld()
-    local taut = self.momo:update(
-        handX,
-        handY,
-        SIDEWALK_BOTTOM,
-        desiredX,
-        desiredY,
-        self.leash
-    )
+    local taut = self.momo:update({
+        handX = handX,
+        handY = handY,
+        feetY = self.walker.feetY,
+        leash = self.leash,
+        surfaces = self.surfaces,
+        peemail = self.peemail,
+        peeReady = (not self.didPee) and self.pee >= PEE_GO,
+        pooReady = (not self.didPoo) and self.poo >= POO_GO,
+        walkerX = self:walkerWorldX(),
+    })
 
     -- Once he starts to go, the commute pauses so slack is enough to finish.
     -- Yank / Come still interrupt.
@@ -386,16 +379,18 @@ function WalkScene:draw()
     drawHome(self.cameraX)
     self.mess:draw(self.cameraX)
 
-    self.walker:draw(WALKER_SCREEN_X, SIDEWALK_BOTTOM)
-    local handX, handY = self.walker:handScreen(WALKER_SCREEN_X, SIDEWALK_BOTTOM)
+    self.walker:draw(WALKER_SCREEN_X, self.walker.feetY)
+    local handX, handY = self.walker:handScreen(WALKER_SCREEN_X, self.walker.feetY)
     local collarX, collarY = self.momo:collarScreen(self.cameraX)
     self.leash:draw(handX, handY, collarX, collarY)
     self.momo:draw(self.cameraX)
     Hud.drawClock(self.clock)
     Hud.drawUrges(self.pee, self.poo, self.didPee, self.didPoo)
     Hud.drawBanner(self.peemail.banner)
-    if self.mess:nearPoo(self:walkerWorldX()) then
+    if self.mess:nearPoo(self:walkerWorldX(), self.walker.feetY) then
         Hud.drawHint("A to bag")
+    elseif self.mess:nearPooX(self:walkerWorldX()) then
+        Hud.drawHint("up onto the lawn")
     elseif self.momo:isCommitted() then
         Hud.drawHint("waiting — B tap cancels")
     elseif self.walker.waiting then

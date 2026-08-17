@@ -6,7 +6,7 @@ Concept, mechanics, story, and v1 scope: **[docs/game-design.md](docs/game-desig
 
 Development environment is Visual Studio Code with automated builds, autocomplete, and debugging (Windows, Mac, and Linux). Started from [SquidGod’s playdate-template](https://github.com/SquidGodDev/playdate-template).
 
-**Status:** Walk, leash, go, and pee-mail are in. Hold Momo on a stain to sniff; the banner is the radar. Bag the pile with A. Encounters are next.
+**Status:** Walk, leash, go, and pee-mail are in. You walk the person and reel the leash; Momo picks the spot. Give him slack to sniff; step onto the lawn to bag. Encounters are next.
 
 This repo includes a copy of [playdate-luacats](https://github.com/notpeter/playdate-luacats) by notpeter, licensed under the MIT license. Template video: https://youtu.be/UZ04rk3lLqU
 
@@ -98,7 +98,7 @@ Game metadata lives in `source/pdxinfo`. See [System and Game Metadata](https://
 - `source` - Game code and assets
   - `main.lua` - Entry point; boots the walk scene
   - `walk/walk_scene.lua` - Sidewalk commute, clock, stub end cards
-  - `walk/leash.lua` / `walker.lua` / `momo.lua` - Reel leash and greybox pair
+  - `walk/leash.lua` / `walker.lua` / `momo.lua` - Slack leash, walker lanes, Momo wants
   - `walk/surfaces.lua` / `hud.lua` / `mess.lua` / `peemail.lua` - Grass, meters, mess, pee-mail
   - `pdxinfo` - Playdate catalog metadata
 - `test/screenshots` - Agent reference framebuffers (400×240, no Simulator chrome)

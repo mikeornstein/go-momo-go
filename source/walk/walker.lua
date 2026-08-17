@@ -1,4 +1,4 @@
--- Greybox walker. Wait stops the commute; a yank tugs (slows) briefly.
+-- Greybox walker. Wait stops the commute; U/D steps off the sidewalk.
 
 local gfx <const> = playdate.graphics
 
@@ -8,6 +8,7 @@ local YANK_FRAMES <const> = 14
 local BAG_FRAMES <const> = 16
 local HAND_DX <const> = 12
 local HAND_DY <const> = -28
+local DEFAULT_FEET_Y <const> = 192
 
 Walker = {}
 Walker.__index = Walker
@@ -27,6 +28,7 @@ function Walker:reset()
     self.yankFrames = 0
     self.bagFrames = 0
     self.walkFrame = 0
+    self.feetY = DEFAULT_FEET_Y
 end
 
 function Walker:yank()
