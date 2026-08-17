@@ -1,11 +1,26 @@
--- Greybox Momo. Moves toward a desired point, then the leash clamps him.
+-- Momo. Moves toward a desired point, then the leash clamps him.
+-- Sprites are 48×48 1-bit PNGs from reference/imagine_momo/.
 
 import "walk/leash"
 import "walk/walker"
 
 local gfx <const> = playdate.graphics
 
-local SIZE <const> = 40
+local SIZE <const> = 48
+local COLLAR_DY <const> = -22
+
+local function loadImage(name)
+    local img = gfx.image.new("images/" .. name)
+    assert(img, "missing images/" .. name)
+    return img
+end
+
+local IMAGES = {
+    stand = loadImage("momo-stand"),
+    sniff = loadImage("momo-sniff"),
+    squat = loadImage("momo-squat"),
+    pee = loadImage("momo-lift-leg"),
+}
 local SPEED <const> = 2.2
 local COME_FRAMES <const> = 24
 local YANK_FRAMES <const> = 14
@@ -45,6 +60,7 @@ function Momo:reset(walkerX, sidewalkY)
     self.event = nil
     self.eventX = nil
     self.eventY = nil
+    self.facing = 1
 end
 
 function Momo:isComing()
@@ -199,6 +215,11 @@ function Momo:update(anchorX, anchorY, sidewalkY, desiredX, desiredY, leash)
             end
             self.worldX += dx / dist * step
             self.worldY += dy / dist * step
+            if dx < -0.2 then
+                self.facing = -1
+            elseif dx > 0.2 then
+                self.facing = 1
+            end
         end
     end
 
@@ -212,7 +233,7 @@ function Momo:update(anchorX, anchorY, sidewalkY, desiredX, desiredY, leash)
     local taut
     collarX, collarY, taut = leash:constrain(anchorX, anchorY, collarX, collarY)
     self.worldX = collarX
-    self.worldY = collarY + 16
+    self.worldY = collarY - COLLAR_DY
 
     if self:isCommitted() and self.pottyX then
         local ddx = self.worldX - self.pottyX
@@ -236,57 +257,59 @@ function Momo:update(anchorX, anchorY, sidewalkY, desiredX, desiredY, leash)
     return taut
 end
 
+function Momo:poseName()
+    local s = self.state
+    if s == "sniff" then
+        return "sniff"
+    end
+    if s == "squat" then
+        return "squat"
+    end
+    if s == "pee" then
+        return "pee"
+    end
+    return "stand"
+end
+
 function Momo:draw(cameraX)
     local x = self.worldX - cameraX
-    local y = self.worldY - SIZE + 4
+    local y = self.worldY - SIZE
     if self.state == "circle" then
         x += math.sin(self.goFrames * 0.8) * 6
-    elseif self.state == "squat" then
-        y += 6
     end
 
-    local radius = 16
-    if self.state == "squat" then
-        radius = 14
+    local img = IMAGES[self:poseName()]
+    local flip = gfx.kImageUnflipped
+    if self.facing < 0 then
+        flip = gfx.kImageFlippedX
     end
-    gfx.setColor(gfx.kColorWhite)
-    gfx.fillCircleAtPoint(x, y + 18, radius)
+    img:draw(x - SIZE / 2, y, flip)
+
     gfx.setColor(gfx.kColorBlack)
-    gfx.drawCircleAtPoint(x, y + 18, radius)
-    gfx.fillCircleAtPoint(x - 12, y + 6, 5)
-    gfx.fillCircleAtPoint(x + 12, y + 6, 5)
-    gfx.fillCircleAtPoint(x, y + 20, 2)
-    gfx.drawLine(x - 4, y + 12, x - 2, y + 14)
-    gfx.drawLine(x + 4, y + 12, x + 2, y + 14)
-
     if self.state == "pee" then
-        -- Lifted rear leg + a falling stream. The puddle is drawn by Mess.
-        gfx.drawLine(x + 6, y + 28, x + 18, y + 18)
-        gfx.drawLine(x + 18, y + 18, x + 20, y + 26)
         local drip = (self.goFrames % 6)
-        gfx.fillCircleAtPoint(x + 20, y + 28 + drip, 2)
-        gfx.fillCircleAtPoint(x + 16, y + 36, 2)
+        local dir = self.facing
+        gfx.fillCircleAtPoint(x + 14 * dir, y + 40 + drip, 2)
+        gfx.fillCircleAtPoint(x + 10 * dir, y + 46, 2)
     elseif self.state == "squat" then
-        -- Pile growing under him so the squat is not just a lower circle.
         local grow = 1 - (self.goFrames / SQUAT_FRAMES)
         local r = 3 + math.floor(grow * 5)
-        gfx.fillCircleAtPoint(x + 12, y + 38, r)
+        gfx.fillCircleAtPoint(x + 12 * self.facing, y + 46, r)
     elseif self.state == "sniff" then
-        -- Nose down + sniff ticks.
-        gfx.drawLine(x + 8, y + 22, x + 18, y + 30)
-        gfx.drawLine(x + 16, y + 18, x + 22, y + 16)
-        gfx.drawLine(x + 16, y + 22, x + 22, y + 22)
+        gfx.drawLine(x + 10 * self.facing, y + 28, x + 16 * self.facing, y + 24)
+        gfx.drawLine(x + 10 * self.facing, y + 32, x + 16 * self.facing, y + 32)
     elseif self.state == "refuse" then
-        gfx.drawText("...", x - 8, y - 14)
+        gfx.drawLine(x - 2, y + 14, x + 2, y + 18)
+        gfx.drawLine(x + 2, y + 14, x - 2, y + 18)
     elseif self.yankFrames > 0 or self.event == "interrupted" then
-        gfx.drawLine(x - 28, y + 4, x - 16, y + 10)
-        gfx.drawLine(x - 30, y + 16, x - 16, y + 16)
-        gfx.drawLine(x - 28, y + 28, x - 16, y + 22)
+        gfx.drawLine(x - 22 * self.facing, y + 8, x - 12 * self.facing, y + 14)
+        gfx.drawLine(x - 24 * self.facing, y + 20, x - 12 * self.facing, y + 20)
+        gfx.drawLine(x - 22 * self.facing, y + 32, x - 12 * self.facing, y + 26)
     end
 end
 
 function Momo:collarWorld()
-    return self.worldX, self.worldY - 16
+    return self.worldX, self.worldY + COLLAR_DY
 end
 
 function Momo:collarScreen(cameraX)
