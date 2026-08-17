@@ -2,7 +2,7 @@
 
 **The call:** It is 1996. Saturday morning. You are late. The doodle still has to go.
 
-This file owns **look**. [game-design.md](game-design.md) owns concept, mechanics, and copy. QA every new picture against the pillars and the concept stills in [art/concept/](art/concept/).
+This file owns **look**. [game-design.md](game-design.md) owns concept, mechanics, and copy. Momo’s face is locked to the photos in [`reference/momo/`](../reference/momo/). QA every new picture against those photos, the pillars, and the concept stills in [art/concept/](art/concept/).
 
 Not mid-century tasteful. Not 2019 indie-cute. Not Game Boy cargo-cult. Not Panic Settings-page restraint dressed up as a game. The pictures are a **Nicktoon suburb reduced to FatBits** — thick cel ink, squashy toys, a block you remember from after-school TV.
 
@@ -119,19 +119,30 @@ Yard fill → house flats + fence → yard props → sidewalk/curb → street �
 
 All engine art: 1-bit, isolated on one keyable flat (white or magenta — pick one and keep it), no baked shadow, no baked sidewalk. Subject registered to a shared ground line and (for Momo) a shared collar pixel.
 
-### Momo — 1996 plush doodle
+### Momo — this doodle, cartooned
 
-Beanie-adjacent double-doodle that walked off the shelf. Teddy muzzle. Floppy ears that hang *below* the skull (not Mickey discs). Dark wet nose. Close-set eyes with one 2×2 shine. Pom-pom tail. Short legs that exist. Side-view **right**. Tan = felt patches.
+Identity is locked to the photos in [`reference/momo/`](../reference/momo/). He is not a generic spaniel and not a show poodle.
+
+- Apricot / caramel **woolly ringlets** (1-bit: black nubs on a white body)
+- Round teddy head, **curls over the brow**, two cartoon eyes peeking through
+- Floppy **curly** ears hanging *beside* the cheeks
+- Large dark nose, cream muzzle
+- **White chest stripe** and **white front socks**
+- Compact sturdy body, side-view **right**
+- **Plume tail** that hangs then flicks — not a ball pom-pom, not a solid black flame
+- Collar or teal harness is optional in sheets; leash docks to one documented pixel
+
+Tan = ringlet nubs. Never a grey fill. Never Mickey discs.
 
 | State | Squint must read |
 | --- | --- |
 | Idle pant | Loaf, ears hanging, chest squash |
-| Walk 4–6 | Ear bounce late, pom-pom counterweight |
+| Walk 4–6 | Ear bounce late, plume tail counterweight |
 | Sniff | Nose down, one ear forward, butt up |
 | Lunge | Stretch, ears back, tail a line |
 | Lift-leg | Tripod, rear leg a fat comma. Stream is 2–3 px, procedural |
 | Circle | Nose chasing tail |
-| Squat | Compact, back round, tail aside. Sacred. Hold. |
+| Squat | Compact, back a round hill, tail hanging over the rear. Sacred. Hold. |
 | Loved | Melt into pets, ears soft |
 | Yank | Neck long, eyes wide, ears pinned |
 | Hackles | Fur ridge, taller ears |
@@ -229,7 +240,8 @@ Style-anchor stills live in [art/concept/](art/concept/). They are **direction l
 ### How to run these prompts
 
 - Use the **verbatim** prompt in each block. Do not paraphrase. Style words are load-bearing.
-- `image_gen` for the first still of a subject. `image_edit` for every reappearance, seeded from the previous still. Never a fresh generate of “the same” Momo.
+- **Momo is always `image_edit` from the photos** in `reference/momo/` (and then from `momo-side.png`). Never `image_gen` a new dog.
+- Best seeds: `off leash.jpeg` (side), `sitting.jpeg` (face, chest, socks), `squatting.jpeg` (squat), `walking nice with stick.jpeg` (walk).
 - One pose / one scene per call. Do not ask the model for contact sheets, comic grids, or baked punchline type.
 - Punchlines (`The gnome saw everything.` etc.) are composited in-engine with Roobert 24. Concept illustrations are **silent**.
 - If a still fails the vibe test, edit-chain a correction from that still. Do not start over unless identity is broken.
@@ -241,24 +253,24 @@ Style-anchor stills live in [art/concept/](art/concept/). They are **direction l
 ### A — Momo identity (canonical)
 
 **File:** `docs/art/concept/momo-side.png`  
-**Tool:** `image_gen` · **aspect:** `1:1`
+**Tool:** `image_edit` of `reference/momo/off leash.jpeg` + `reference/momo/sitting.jpeg` · **aspect:** `1:1`
 
 ```
-A stuffed-animal double-doodle dog named Momo in strict side view facing right, standing on a flat white field like a toy on a lightbox. He has a huge teddy head about forty percent of his height, floppy ears hanging below the skull, a round white muzzle, a black wet nose, close-set black eyes with one tiny square shine, a pom-pom tail, short squashy legs, a nubby fluffy outline like a Beanie Baby seam, a few felt-like black clumps on his saddle, and a thin collar with a square tag. 1-bit Macintosh FatBits cartoon, only pure black and pure white pixels, no grey, no anti-alias, thick rounded cel outlines, 1996 Nickelodeon Saturday-morning toy, proud chunky MacPaint pixels, isolated character, no ground shadow, no background scene.
+Redraw this same real dog as a chunky 1-bit MacPaint cartoon, strict side view facing right on a flat white field. He is a stocky apricot double-doodle, not a show poodle: woolly ringlet clumps drawn as black nubs on a white body, a round teddy head with bangs over the eyes, short floppy curly ears hanging beside the cheeks, a big black nose, a cream muzzle, a white stripe down the chest, white socks on the front paws, and a plume tail that hangs then flicks up at the tip. Thick black cel outlines, only pure black and pure white, no grey fill, no anti-alias, 1996 Nickelodeon stuffed-animal toy, isolated, no shadow, no letters.
 ```
 
-**Pass:** ears hang below the skull (not Mickey discs on top); muzzle is a light teddy pad; outline is nubby; head is oversized; white field only.
+**Pass:** it is *this* dog — ringlets, bangs, chest stripe, white socks, curly ears beside the head. Fail if he is a spaniel, a grey show poodle, or a panda.
 
-### A2 — Squat (edit-chain from A)
+### A2 — Squat (edit-chain from A + photo)
 
 **File:** `docs/art/concept/momo-squat.png`  
-**Tool:** `image_edit` of `momo-side.png` · keep the same dog
+**Tool:** `image_edit` of `momo-side.png` + `reference/momo/squatting.jpeg`
 
 ```
-Keep this exact stuffed doodle — same face, same floppy hanging ears, same white muzzle, same black nose, same pom-pom tail, same nubby outline, same collar, same 1-bit FatBits cartoon on a flat white field. Change only the pose: he is squatting to poo, body compact and slightly embarrassed, back rounded, tail nudged aside, short legs planted, head a little down, still facing right. Same thick cel outlines, pure black and white, no new background.
+Keep this exact 1-bit doodle face and coat. Pose him like the photo: a compact poo squat, hips dropped almost to the ground, back a high round hill, plume tail hanging straight down over his rear, front legs planted, head a little low, still facing right on a flat white field. This is not a stand. No puddle. Pure black and white, thick cel outlines.
 ```
 
-**Pass:** unique silhouette vs stand; sacred and a little ashamed, not a joke splat.
+**Pass:** unique silhouette vs stand; matches the photo squat; sacred and a little ashamed.
 
 ### A3 — Sniff (edit-chain from A)
 
@@ -266,7 +278,7 @@ Keep this exact stuffed doodle — same face, same floppy hanging ears, same whi
 **Tool:** `image_edit` of `momo-side.png`
 
 ```
-Keep this exact stuffed doodle — same face, same floppy hanging ears, same white muzzle, same black nose, same pom-pom tail, same nubby outline, same collar, same 1-bit FatBits cartoon on a flat white field. Change only the pose: he is sniffing, nose down to the ground, one ear tipped forward, rump slightly up, still facing right. Same thick cel outlines, pure black and white, no new background.
+Keep this exact 1-bit doodle — same curly bangs, same googly eyes, same ringlet body, same white socks, same big nose, same 1-bit FatBits cartoon on a flat white field. Change only the pose: he is sniffing, nose down to the ground, one floppy ear tipped forward, rump slightly up, still facing right. Same thick cel outlines, pure black and white, no new background.
 ```
 
 **Pass:** nose-down / butt-up reads at a squint; still the same dog as A.
@@ -274,24 +286,24 @@ Keep this exact stuffed doodle — same face, same floppy hanging ears, same whi
 ### B — Walk slice
 
 **File:** `docs/art/concept/walk-slice.png`  
-**Tool:** `image_edit` of `momo-side.png` (put this Momo in the block) · **aspect:** `16:9`
+**Tool:** `image_edit` of `momo-side.png` + `reference/momo/walking nice with stick.jpeg` · **aspect:** `16:9`
 
 ```
-Keep this exact stuffed doodle and drop him into a 1996 Nicktoon sidewalk scene, side view, he is on a long leash lunging a little toward a strip of tidy tufted lawn. A boxy windbreaker commuter stands on the left, almost no face, one white chevron on the jacket, chunky sneakers, a visible fist holding a taut 2-pixel black leash. White picket fence, a proud toy fire hydrant with two side caps, vinyl house flats with one window each, fat pale sidewalk slabs with thin mortar, a dark street with fat lane dashes along the bottom. 1-bit Macintosh FatBits cartoon, only pure black and pure white, thick rounded cel outlines, 1996 Saturday-morning suburb, no grey, no anti-alias, no HUD, no letters, no Playdate chrome, wide side-scroller frame.
+Keep this exact 1-bit doodle and drop him into a flat 1996 Nicktoon sidewalk scene, side-scroller, wide frame. He is on a taut 2-pixel black leash, a little lunged toward a strip of tidy tufted lawn, still the same curly-bang doodle with white socks. A boxy windbreaker commuter stands on the left, almost no face, one white chevron, chunky sneakers, a visible fist on the leash. White picket, a proud toy fire hydrant with two side caps, vinyl house flats with one window, fat sidewalk slabs, dark street with fat dashes. Pure black and white FatBits, thick cel outlines, no grey, no letters, no HUD.
 ```
 
-**Pass:** three bands (yard / sidewalk / street) read instantly; Momo matches A; walker is a hard toy; hydrant looks like a hydrant; no type.
+**Pass:** three bands read instantly; Momo matches A; walker is a hard toy; hydrant looks like a hydrant; no type.
 
 ### C — Gnome bumper (silent illustration)
 
 **File:** `docs/art/concept/gnome-bumper.png`  
-**Tool:** `image_gen` · **aspect:** `16:9`
+**Tool:** `image_edit` of `momo-side.png` · **aspect:** `16:9`
 
 ```
-A 1996 Nicktoon garden gnome fills the foreground in a Playdate-wide bumper still, pointed hat, fat beard, round belly, hands on hips, staring straight out with clear cartoon eyes like he is filing a report. Behind him a tiny stuffed double-doodle is caught on a tidy forbidden lawn behind a short hedge, same nubby plush dog as a guest in the distance. 1-bit Macintosh FatBits cartoon, only pure black and pure white, thick rounded cel outlines, Saturday-morning freeze-frame, proud MacPaint pixels, no grey, no anti-alias, no letters, no captions, no TV bezel.
+A 1996 Nicktoon garden gnome fills the foreground of a wide bumper still: pointed hat, fat beard, round belly, hands on hips, staring out with cartoon eyes like he is filing a report. Behind the hedge, put one small copy of this exact 1-bit curly-bang doodle on a tidy forbidden lawn, looking guilty. Pure black and white FatBits cartoon, thick cel outlines, Saturday-morning freeze-frame, no letters, no captions, no TV bezel.
 ```
 
-**Pass:** gnome could guest-star in *Doug*; he has eyes; Momo is small and guilty; no baked punchline.
+**Pass:** gnome could guest-star in *Doug*; he has eyes; Momo is the same dog, small and guilty; no baked punchline.
 
 Punchline **The gnome saw everything.** is Roobert 24 in-engine, not in this PNG.
 
@@ -312,6 +324,7 @@ When those PRs start, edit-chain from A/B/C. Do not invent a new Momo.
 
 A later asset fails if any of these are true:
 
+- He does not match `reference/momo/` (no ringlets, no chest stripe, no white socks, spaniel ears, show-poodle clip).
 - Momo’s ears sit on top of the head like Mickey discs.
 - Momo is a smooth circle, a panda, or a photoreal doodle.
 - Outline is 1 px or anti-aliased grey.
