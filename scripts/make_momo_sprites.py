@@ -28,6 +28,9 @@ FRAMES = (
     ("momo-sniff", "momo-sniff.jpg"),
     ("momo-squat", "momo-squat.jpg"),
     ("momo-lift-leg", "momo-lift-leg.jpg"),
+    ("momo-walk-2", "momo-walk-2.jpg"),
+    ("momo-walk-3", "momo-walk-3.jpg"),
+    ("momo-walk-4", "momo-walk-4.jpg"),
 )
 
 

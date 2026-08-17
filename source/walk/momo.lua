@@ -21,6 +21,15 @@ local IMAGES = {
     squat = loadImage("momo-squat"),
     pee = loadImage("momo-lift-leg"),
 }
+
+-- Stand plus three small-step frames. Cycle while he or the walker is moving.
+local WALK = {
+    IMAGES.stand,
+    loadImage("momo-walk-2"),
+    loadImage("momo-walk-3"),
+    loadImage("momo-walk-4"),
+}
+local WALK_HOLD <const> = 5
 local SPEED <const> = 2.2
 local COME_FRAMES <const> = 24
 local YANK_FRAMES <const> = 14
@@ -61,6 +70,8 @@ function Momo:reset(walkerX, sidewalkY)
     self.eventX = nil
     self.eventY = nil
     self.facing = 1
+    self.walkFrame = 0
+    self.stepping = false
 end
 
 function Momo:isComing()
@@ -177,7 +188,7 @@ function Momo:tickGo()
     self.pottyY = nil
 end
 
-function Momo:update(anchorX, anchorY, sidewalkY, desiredX, desiredY, leash)
+function Momo:update(anchorX, anchorY, sidewalkY, desiredX, desiredY, leash, commuting)
     self.event = nil
     if self.coolFrames > 0 then
         self.coolFrames -= 1
@@ -202,6 +213,7 @@ function Momo:update(anchorX, anchorY, sidewalkY, desiredX, desiredY, leash)
         end
     end
 
+    local moved = false
     if committed then
         self:tickGo()
     elseif self.yankFrames == 0 then
@@ -215,12 +227,20 @@ function Momo:update(anchorX, anchorY, sidewalkY, desiredX, desiredY, leash)
             end
             self.worldX += dx / dist * step
             self.worldY += dy / dist * step
+            moved = true
             if dx < -0.2 then
                 self.facing = -1
             elseif dx > 0.2 then
                 self.facing = 1
             end
         end
+    end
+
+    self.stepping = moved or (commuting == true and (not committed) and self.yankFrames == 0)
+    if self.stepping then
+        self.walkFrame += 1
+    else
+        self.walkFrame = 0
     end
 
     if self.worldY < MIN_Y then
@@ -278,7 +298,11 @@ function Momo:draw(cameraX)
         x += math.sin(self.goFrames * 0.8) * 6
     end
 
-    local img = IMAGES[self:poseName()]
+    local pose = self:poseName()
+    local img = IMAGES[pose]
+    if pose == "stand" and self.stepping then
+        img = WALK[(self.walkFrame // WALK_HOLD) % #WALK + 1]
+    end
     local flip = gfx.kImageUnflipped
     if self.facing < 0 then
         flip = gfx.kImageFlippedX

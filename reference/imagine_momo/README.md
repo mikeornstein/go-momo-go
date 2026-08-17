@@ -5,6 +5,7 @@ These six stills are the **cartoon Momo** to seed every later `image_edit`. Phot
 | File | Pose |
 | --- | --- |
 | `momo-stand.jpg` | Canonical. Standing, facing right, plume up. Seed everything from this. |
+| `momo-walk-2.jpg` … `momo-walk-4.jpg` | Small-step walk. Engine cycle is stand + these three. |
 | `momo-sniff.jpg` | Nose down, rump up |
 | `momo-squat.jpg` | Compact sit / squat hold, no pile |
 | `momo-lift-leg.jpg` | Rear leg up, pads showing |

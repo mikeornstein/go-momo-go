@@ -186,7 +186,8 @@ function WalkScene:update()
         SIDEWALK_BOTTOM,
         desiredX,
         desiredY,
-        self.leash
+        self.leash,
+        self.walker:commuteScale() > 0
     )
 
     -- Once he starts to go, the commute pauses so slack is enough to finish.
