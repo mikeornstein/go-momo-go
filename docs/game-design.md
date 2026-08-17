@@ -64,15 +64,19 @@ Walks 2–5 are follow-up content issues. They are not required to call v1 done.
 
 ## Camera, space, and the leash
 
-Side-view, **auto-scrolls right**. The walker walks at a steady commute pace. The screen is a slice of sidewalk:
+Side-view. The **d-pad walks the person**; the screen does not auto-scroll. The walker can step off the sidewalk. The screen is a slice of one block:
 
 ```
-  [ yards / fences / grass / trees ]     ← Momo can range UP if the leash allows
+  [ yards / fences / grass / trees ]     ← step up (bag, grant lawn reach); Momo roams here if slack allows
   [ sidewalk — walker ~~~~ Momo     ]     ← default path
-  [ curb / street / bikes / puddles ]     ← Momo can range DOWN; dangerous
+  [ curb / street / bikes / puddles ]     ← step down; dangerous later
 ```
 
 Resolution is 400×240. Momo is the read target: **~40×40 px** (above the 32 px Playdate floor). Walker similar. Leash max ~120–140 px so both stay on screen with margin. Do **not** zoom the world.
+
+This is still a **corridor**, not a neighborhood. D-pad left/right walks along the block; up/down changes lane (yards / sidewalk / curb). Camera follows the walker on X and does not pan in Y. You can walk back. A round-trip “leave the front door, wander a grid, come home” map is a later structure ticket.
+
+Geometry does the “room or not” job. Hand to yards is ~76 px; hand to curb ~52 px. Heel slack cannot reach the lawn. Working slack just can. Long slack is how he gets into deep yards — and onto the gnome lawn if you gave him that room.
 
 ### Crank = leash length
 
@@ -90,32 +94,59 @@ Fast wind-in while Momo is committed (sniff, squat, lunge) **yanks**. Yank inter
 
 Reel (not angle-as-length) makes length an investment: you *paid* crank travel to reach the lawn, and you *pay it back* to survive the dog. That is the game.
 
+Paying out does **not** translate Momo. Length is only a max radius. He stays put until *he* walks, or until the collar hits the new radius and you haul him.
+
+Walking away while he is loose hauls him (collar clamped to the hand). Walking away while he is **planted** (strong sniff, pee, circle, squat) does the opposite: slack holds *you*. He finishes unless you yank with the crank.
+
+Stepping onto the lawn moves the leash *origin*. Short slack from the grass can reach a squat that short slack from the sidewalk cannot. Reel and standing closer are two ways to grant or deny room.
+
 ### The two-body rule
 
-- Walker wants to keep commuting (auto-move right).
-- Momo wants the nearest interesting thing (sniff, squirrel, grandma, grass).
-- Leash is a **max-distance constraint**. Hit the end → walker slows and/or Momo gets yanked.
-- Slack = Momo's AI is free inside the radius.
+- You own the **walker** (d-pad) and the **leash** (crank).
+- Momo owns **where he stands** inside the slack disk, and what he wants next.
+- Leash is a **max-distance constraint**, always. Collar-to-hand never exceeds length.
+- Loose Momo: you walk, he is hauled at the end of the slack.
+- Planted Momo: you walk, you stop at the end of the slack. He resists.
+- Crank wind-in while taut still **yanks** (interrupts a plant). Walking into taut slack does not.
 
 You are not steering a single avatar. You are managing a relationship.
+
+### Momo's mind
+
+He picks a **want** and keeps it for a short attention span. He is not a homing missile and he is not a player cursor.
+
+| Want | When | Target |
+|------|------|--------|
+| **Heel** | Come, docked, or leash near heel | Just ahead of the walker's current feet |
+| **Mail** | Unread pee-mail in notice range | The stain |
+| **Potty** | Urge ready and a legal patch in notice range | Patch center (hydrant on the sidewalk, grass in the yards) |
+| **Wander** | Otherwise, if slack is more than heel | A point *inside* the current slack disk |
+
+Priority: yank / Come / committed action, then a locked want, then a new mail or potty that enters notice range, then wander.
+
+- Wander samples only inside ~75% of leash length so idle roam is not constantly taut. Forward bias, plus Y jitter. If slack can reach yards or curb, those lanes are legal samples. He is not *aimed* at the gnome; long slack next to the forbidden lawn is how he gets there.
+- Mail and potty may sit a little *outside* current slack. He walks toward them and goes taut. Reel out, step closer, Come, or reel in and deny him.
+- Come is a **request**. He walks to heel himself. It is not a teleport and not position control.
+- Go (sniff / pee / squat) starts only when *he* is standing on the surface. You cannot point him at grass to start a squat.
 
 ---
 
 ## Controls
 
-Playdate guidance: crank + **B** (left thumb) is the comfortable combo. D-pad doubles as accessibility.
+Playdate guidance: crank + **B** (left thumb) is the comfortable combo. The whole d-pad moves the person. Nothing on the d-pad aims Momo or reels the leash.
 
 | Input | Action |
 |-------|--------|
-| **Crank** | Reel leash out / in |
-| **B tap** | "Come!" — Momo turns toward walker, brief ignore of distractions |
-| **B hold** | "Wait" — walker slows/stops. Use to time a squat or a dog pass |
-| **A** | "Good boy" / treat. Short focus burst after a success; not required to potty |
-| **D-pad U/D** | Hint Momo toward yards or curb (within slack) |
-| **D-pad L/R** | Hint Momo back / ahead; also **accessibility reel** (L in, R out) if crank is unused |
+| **Crank** | Reel leash out / in. Length is max radius only. |
+| **B tap** | "Come!" — request heel; he walks in and ignores wants briefly |
+| **A** | Bag the pile (must be standing near it — walk onto the lawn) |
+| **D-pad L/R** | Walk the **person** along the block |
+| **D-pad U/D** | Step the **person** toward the yards or the curb |
 | **System Menu** | Restart walk, mute, (later) walk select |
 
-If the walk only needs one panic verb, bind it to B, A, and d-pad down so players can pick a comfortable hand.
+Docked crank: official `playdate.ui.crankIndicator`, Momo locked at heel. The walker can still walk. New players must undock to finish the walk.
+
+Crank-less reel (old L/R a11y) is a later bind — L/R is locomotion now. Treat / "Good boy" is a later bind if A is free after bag. Panic stays on **B** (Come).
 
 ---
 
@@ -134,10 +165,11 @@ Two urges, independent:
 
 On valid grass + poo urge high enough, Momo **circles** (readable wind-up) then squats. For those ~2 seconds the player must:
 
-1. Give enough slack that he stays on the patch.
-2. Not yank.
-3. Hold "Wait" if a threat is incoming, or heel-reel only after he finishes.
+1. Give enough slack — reel out, or stand closer so the origin reaches him.
+2. Do not crank-yank.
+3. If you walk away, he plants and you stop at the end of the slack. Stand still or walk around him.
 4. Keep grandmas and dogs outside his radius.
+5. After he finishes, **step onto the lawn** and bag with A. Sidewalk X-overlap is not enough.
 
 Interrupted squat = embarrassment, urge stays, he will not retry that same patch for a few seconds.
 
@@ -287,7 +319,7 @@ source/
     walk_scene.lua      -- scroll, clock, win/lose
     leash.lua           -- crank reel, constraint
     walker.lua
-    momo.lua            -- AI wants + states
+    momo.lua            -- wants (heel / mail / potty / wander) + states
     surfaces.lua        -- grass / sidewalk / forbidden
     encounters.lua      -- spawn + update
     hud.lua
@@ -309,8 +341,8 @@ Verification follows [AGENTS.md](../AGENTS.md): `pdc`, Simulator, `writeToFile` 
 
 | Decision | Choice | Why |
 |----------|--------|-----|
-| Player fantasy | You walk Momo; crank is the leash | Matches the title and the hardware. Momo is the character; you are the relationship. |
-| Camera | Side-scroll, auto-commute right | Hands stay on crank + B, not a move stick. |
+| Player fantasy | You walk the person and the leash; Momo walks himself | Matches the title and the hardware. Momo is the character; you are the relationship. |
+| Camera | Follows the walker; d-pad walks; no auto-scroll | Person is the stick. Not a neighborhood grid in v1. |
 | Crank model | Reel (`getCrankChange`), not angle-as-length | Feels like a retractable leash; length is an investment. |
 | Win | 1 pee + 1 poo on legal surfaces, then home, before the clock | "Go" is the goal; pee-mail is the tool; poo-on-nice-grass is the set-piece. |
 | Pee-mail | Intel is the reward; reply is optional | The nose compulsion is strategic, not a fetch quest. |
@@ -318,7 +350,8 @@ Verification follows [AGENTS.md](../AGENTS.md): `pdc`, Simulator, `writeToFile` 
 | Mean dogs | Heel = safe; slack + overlap = fail (Walk 1) | Teaches the short-leash verb without a combat system. |
 | Forbidden lawn | Instant fail | Readable, funny, no chase system in v1. |
 | Scope of v1 | One authored walk, placeholder art OK, full loop | A playable joke before a neighborhood engine. |
-| Walker on-screen | Yes, simple | Leash and tug need two bodies. |
+| Walker on-screen | Yes; U/D steps yards / curb | Leash origin and bag need a body that can leave the sidewalk. |
+| Map shape (v1) | Authored corridor, one-way to home | Pee-mail teaching needs a known block. Open / procedural grid and round-trip front door are later. |
 | Endless runner | No | A walk has a door at both ends. |
 | Art order | Greybox loop, then Momo sheet | Mechanics first; silhouette check on device second. |
 
@@ -328,6 +361,7 @@ Verification follows [AGENTS.md](../AGENTS.md): `pdc`, Simulator, `writeToFile` 
 
 - Combat system, inventory, multiplayer, GPS / real-neighborhood maps
 - Walks 2–5, Bruno as a character encounter, cyclist, daily seed, score attack, wrapping paper
+- Open / procedural neighborhood grid; round-trip leave-and-return front door (walker lanes enable it later)
 - 8×8 tiles, runtime-rotated doodle
 - Shipping `writeToFile` hooks or compiled `.pdx` bundles
 
@@ -344,10 +378,12 @@ Ticket-driven. One issue per vertical slice. Branches `docs/N-…` / `feat/N-…
 | 3 | Leash: walker + Momo placeholders, reel, constraint, yank, B come/wait |
 | 4 | Surfaces + go: grass types, urges, circle/squat/lift-leg, win on 1+1 and home |
 | 5 | Pee-mail: sniff spots, one-line HUD, optional reply, one telegraph message |
-| 6 | Mean dogs + grandma: heel-pass vs tangle fail; lock, extract, loved drain |
-| 7 | Walk 1 layout: hydrant → pee-mail → grandma → dog → nice lawn → home; squirrel + forbidden lawn |
-| 8 | Art direction bible + Imagine concept stills; then Momo art + launcher card (title in the card); device check |
-| 9 | Audio, menu image, accessibility bindings |
+| 6 | Momo's mind: wander-in-slack, no player aim; walker U/D lanes; bag is 2D |
+| 6b | Walker stick: d-pad L/R walks, no auto-commute, planted Momo resists |
+| 7 | Mean dogs + grandma: heel-pass vs tangle fail; lock, extract, loved drain |
+| 8 | Walk 1 layout: hydrant → pee-mail → grandma → dog → nice lawn → home; squirrel + forbidden lawn |
+| 9 | Art direction bible + Imagine concept stills; then Momo art + launcher card (title in the card); device check |
+| 10 | Audio, menu image, accessibility bindings |
 
 ---
 

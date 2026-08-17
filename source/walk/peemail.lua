@@ -55,13 +55,13 @@ function Peemail:at(worldX, worldY)
     return nil
 end
 
-function Peemail:nearestUnread(walkerX, maxDist)
+function Peemail:nearestUnread(fromX, walkerX, maxDist)
     local best, bestD = nil, maxDist + 1
     for i = 1, #self.spots do
         local s = self.spots[i]
         if (not s.read) and s.x + s.w >= walkerX then
             local cx = s.x + s.w / 2
-            local d = math.abs(cx - walkerX)
+            local d = math.abs(cx - fromX)
             if d < bestD then
                 bestD = d
                 best = s

@@ -52,6 +52,12 @@ function Leash:constrain(anchorX, anchorY, x, y)
     return anchorX + dx * scale, anchorY + dy * scale, true
 end
 
+function Leash:isTaut(anchorX, anchorY, x, y)
+    local dx = x - anchorX
+    local dy = y - anchorY
+    return (dx * dx + dy * dy) > (self.length * self.length)
+end
+
 function Leash:draw(x1, y1, x2, y2)
     local dx = x2 - x1
     local dy = y2 - y1
