@@ -1,23 +1,26 @@
 // Arcade loop: leave home, sidewalks, crosswalks, pace on grass, home before clock.
+// Camera is a 400×240 window on a larger cell-grid neighborhood; walking off a
+// screen edge snaps (no smooth pan).
 (function (root) {
   "use strict";
 
   var Map = root.GoMomoMap;
   var CELL = Map.CELL;
-  var W = Map.W;
-  var H = Map.H;
+  var VIEW_W = Map.VIEW_W;
+  var VIEW_H = Map.VIEW_H;
+  var CELL_SIZE = Map.CELL_SIZE;
 
   var BG = "#c9d63a";
   var INK = "#2a1c12";
 
-  var WALK_SPEED = 52;
-  var CAR_SPEED = 28;
-  var NPC_SPEED = 16;
-  var CLOCK = 60;
+  var WALK_SPEED = 60;
+  var CAR_SPEED = 36;
+  var NPC_SPEED = 18;
+  var CLOCK = 75;
   var PACE_TIME = 2.35;
-  var LEASH = 13;
-  var INTERRUPT_R = 12;
-  var CAR_SPOOK_R = 11;
+  var LEASH = 18;
+  var INTERRUPT_R = 16;
+  var CAR_SPOOK_R = 16;
   var STUN_TIME = 0.35;
 
   function clamp(v, a, b) {
@@ -54,15 +57,15 @@
       facingX: 0,
       facingY: 1,
     };
-    this.momo = { x: this.walker.x, y: this.walker.y + 8 };
+    this.momo = { x: this.walker.x, y: this.walker.y + 10 };
     this.cars = this.map.spawns.cars.map(function (c) {
       return {
         x: c.x,
         y: c.y,
         axis: c.axis,
         dir: c.dir,
-        w: c.axis === "x" ? 10 : 6,
-        h: c.axis === "x" ? 6 : 10,
+        w: c.axis === "x" ? 16 : 10,
+        h: c.axis === "x" ? 10 : 16,
         turnLock: 0,
       };
     });
@@ -86,14 +89,55 @@
     this.stun = 0;
     this.interruptFlash = 0;
     this.time = 0;
+    this.cam = { x: 0, y: 0 };
+    this.frameHome();
+  };
+
+  Game.prototype.maxCam = function () {
+    return {
+      x: Math.max(0, this.map.worldW - VIEW_W),
+      y: Math.max(0, this.map.worldH - VIEW_H),
+    };
+  };
+
+  Game.prototype.frameHome = function () {
+    var max = this.maxCam();
+    this.cam.x = clamp(Math.floor(this.walker.x - VIEW_W / 2), 0, max.x);
+    this.cam.y = clamp(Math.floor(this.walker.y - VIEW_H / 2), 0, max.y);
+  };
+
+  Game.prototype.snapCamera = function () {
+    var max = this.maxCam();
+    var snapped = false;
+    while (this.walker.x >= this.cam.x + VIEW_W && this.cam.x < max.x) {
+      this.cam.x = Math.min(max.x, this.cam.x + VIEW_W);
+      snapped = true;
+    }
+    while (this.walker.x < this.cam.x && this.cam.x > 0) {
+      this.cam.x = Math.max(0, this.cam.x - VIEW_W);
+      snapped = true;
+    }
+    while (this.walker.y >= this.cam.y + VIEW_H && this.cam.y < max.y) {
+      this.cam.y = Math.min(max.y, this.cam.y + VIEW_H);
+      snapped = true;
+    }
+    while (this.walker.y < this.cam.y && this.cam.y > 0) {
+      this.cam.y = Math.max(0, this.cam.y - VIEW_H);
+      snapped = true;
+    }
+    if (this.walker.x >= this.cam.x + VIEW_W) this.cam.x = max.x;
+    if (this.walker.x < this.cam.x) this.cam.x = 0;
+    if (this.walker.y >= this.cam.y + VIEW_H) this.cam.y = max.y;
+    if (this.walker.y < this.cam.y) this.cam.y = 0;
+    return snapped;
   };
 
   Game.prototype.cell = function (x, y) {
-    return Map.get(this.map.cells, x, y);
+    return Map.get(this.map, x, y);
   };
 
   Game.prototype.walkable = function (x, y) {
-    return Map.isWalkableAt(this.map.cells, x, y);
+    return Map.isWalkableAt(this.map, x, y);
   };
 
   Game.prototype.onHome = function () {
@@ -129,8 +173,9 @@
       this.walker.facingX = axis.x;
       this.walker.facingY = axis.y;
       this.tryMove(this.walker, axis.x * WALK_SPEED * dt, axis.y * WALK_SPEED * dt);
-      this.walker.x = clamp(this.walker.x, 1, W - 2);
-      this.walker.y = clamp(this.walker.y, 1, H - 2);
+      this.walker.x = clamp(this.walker.x, 1, this.map.worldW - 2);
+      this.walker.y = clamp(this.walker.y, 1, this.map.worldH - 2);
+      this.snapCamera();
     }
     return { moving: moving };
   };
@@ -156,7 +201,7 @@
       for (var j = 0; j < this.map.hStreets.length; j++) {
         var ix = this.map.vStreets[i].asphaltCenter;
         var iy = this.map.hStreets[j].asphaltCenter;
-        if (hypot(x - ix, y - iy) < 7) return { x: ix, y: iy };
+        if (hypot(x - ix, y - iy) < 18) return { x: ix, y: iy };
       }
     }
     return null;
@@ -202,40 +247,40 @@
         }
         car.dir = Math.random() < 0.5 ? 1 : -1;
         car.turnLock = 1.1;
-        car.w = car.axis === "x" ? 10 : 6;
-        car.h = car.axis === "x" ? 6 : 10;
+        car.w = car.axis === "x" ? 16 : 10;
+        car.h = car.axis === "x" ? 10 : 16;
       }
       var speed = CAR_SPEED * dt * car.dir;
       if (car.axis === "x") car.x += speed;
       else car.y += speed;
 
       var inner = this.map.inner;
-      if (car.x < inner.x0 + 4) {
-        car.x = inner.x0 + 4;
+      if (car.x < inner.x0 + 8) {
+        car.x = inner.x0 + 8;
         car.dir = 1;
       }
-      if (car.x > inner.x1 - 4) {
-        car.x = inner.x1 - 4;
+      if (car.x > inner.x1 - 8) {
+        car.x = inner.x1 - 8;
         car.dir = -1;
       }
-      if (car.y < inner.y0 + 4) {
-        car.y = inner.y0 + 4;
+      if (car.y < inner.y0 + 8) {
+        car.y = inner.y0 + 8;
         car.dir = 1;
       }
-      if (car.y > inner.y1 - 4) {
-        car.y = inner.y1 - 4;
+      if (car.y > inner.y1 - 8) {
+        car.y = inner.y1 - 8;
         car.dir = -1;
       }
       this.snapCarToStreet(car);
 
       if (this.cell(this.walker.x, this.walker.y) === CELL.CROSSWALK) {
         var hit =
-          Math.abs(this.walker.x - car.x) < car.w * 0.55 + 3 && Math.abs(this.walker.y - car.y) < car.h * 0.55 + 3;
+          Math.abs(this.walker.x - car.x) < car.w * 0.55 + 4 && Math.abs(this.walker.y - car.y) < car.h * 0.55 + 4;
         if (hit) {
           var bx = this.walker.x - car.x;
           var by = this.walker.y - car.y;
           var bd = hypot(bx, by) || 1;
-          this.tryMove(this.walker, (bx / bd) * 10, (by / bd) * 10);
+          this.tryMove(this.walker, (bx / bd) * 12, (by / bd) * 12);
           this.stun = STUN_TIME;
           this.say("Watch the cars!", 1.2);
         }
@@ -254,8 +299,8 @@
       ];
       var options = [];
       for (var i = 0; i < dirs.length; i++) {
-        var nx = npc.x + dirs[i][0] * 3;
-        var ny = npc.y + dirs[i][1] * 3;
+        var nx = npc.x + dirs[i][0] * 4;
+        var ny = npc.y + dirs[i][1] * 4;
         if (this.canNpcStand(nx, ny)) options.push(dirs[i]);
       }
       if (options.length) {
@@ -344,8 +389,9 @@
     if (this.state !== "play") return;
     var kind = this.cell(this.walker.x, this.walker.y);
     if (!this.hasLeftHome) {
-      var fromDoor = hypot(this.walker.x - this.map.home.stoop.x, this.walker.y - this.map.home.stoop.y);
-      if (fromDoor > 24 || kind === CELL.GRASS || kind === CELL.CROSSWALK) this.hasLeftHome = true;
+      if (kind === CELL.GRASS || kind === CELL.CROSSWALK || kind === CELL.SIDEWALK) {
+        this.hasLeftHome = true;
+      }
     }
 
     if (this.clock <= 0) {
@@ -435,39 +481,61 @@
         [2, 1],
         [1, 2],
       ]),
+      drive: pat([
+        [0, 0],
+        [1, 1],
+        [2, 2],
+        [3, 3],
+      ]),
+      fence: pat([
+        [0, 0],
+        [0, 1],
+        [0, 2],
+        [0, 3],
+        [2, 0],
+        [2, 1],
+        [2, 2],
+        [2, 3],
+      ]),
+      yard: pat([
+        [1, 1],
+        [3, 3],
+      ]),
     };
     return this._pats;
   };
 
   Game.prototype.drawYardDither = function (ctx) {
     ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(this.cam.x, this.cam.y, VIEW_W, VIEW_H);
   };
 
   Game.prototype.drawCells = function (ctx) {
     var pats = this.patterns(ctx);
     var i;
-    var inner = this.map.inner;
+    var worldW = this.map.worldW;
+    var worldH = this.map.worldH;
+
     ctx.fillStyle = pats.walk;
     for (i = 0; i < this.map.vStreets.length; i++) {
       var vs = this.map.vStreets[i];
-      ctx.fillRect(vs.walkL0, inner.y0, vs.walkL1 - vs.walkL0, inner.y1 - inner.y0);
-      ctx.fillRect(vs.walkR0, inner.y0, vs.walkR1 - vs.walkR0, inner.y1 - inner.y0);
+      ctx.fillRect(vs.walkL0, 0, vs.walkL1 - vs.walkL0, worldH);
+      ctx.fillRect(vs.walkR0, 0, vs.walkR1 - vs.walkR0, worldH);
     }
     for (i = 0; i < this.map.hStreets.length; i++) {
       var hs = this.map.hStreets[i];
-      ctx.fillRect(inner.x0, hs.walkT0, inner.x1 - inner.x0, hs.walkT1 - hs.walkT0);
-      ctx.fillRect(inner.x0, hs.walkB0, inner.x1 - inner.x0, hs.walkB1 - hs.walkB0);
+      ctx.fillRect(0, hs.walkT0, worldW, hs.walkT1 - hs.walkT0);
+      ctx.fillRect(0, hs.walkB0, worldW, hs.walkB1 - hs.walkB0);
     }
 
     ctx.fillStyle = pats.street;
     for (i = 0; i < this.map.vStreets.length; i++) {
       vs = this.map.vStreets[i];
-      ctx.fillRect(vs.asphalt0, inner.y0, vs.asphalt1 - vs.asphalt0, inner.y1 - inner.y0);
+      ctx.fillRect(vs.asphalt0, 0, vs.asphalt1 - vs.asphalt0, worldH);
     }
     for (i = 0; i < this.map.hStreets.length; i++) {
       hs = this.map.hStreets[i];
-      ctx.fillRect(inner.x0, hs.asphalt0, inner.x1 - inner.x0, hs.asphalt1 - hs.asphalt0);
+      ctx.fillRect(0, hs.asphalt0, worldW, hs.asphalt1 - hs.asphalt0);
     }
 
     this.ink(ctx);
@@ -482,21 +550,43 @@
       }
     }
 
-    ctx.fillStyle = pats.grass;
-    for (i = 0; i < this.map.grass.length; i++) {
-      var g = this.map.grass[i];
-      ctx.fillRect(g.x, g.y, g.w, g.h);
-      this.ink(ctx);
-      ctx.fillRect(g.x, g.y, g.w, 1);
-      ctx.fillRect(g.x, g.y + g.h - 1, g.w, 1);
-      ctx.fillStyle = pats.grass;
+    var c0 = Math.max(0, Math.floor(this.cam.x / CELL_SIZE) - 1);
+    var r0 = Math.max(0, Math.floor(this.cam.y / CELL_SIZE) - 1);
+    var c1 = Math.min(this.map.gridW, Math.ceil((this.cam.x + VIEW_W) / CELL_SIZE) + 1);
+    var r1 = Math.min(this.map.gridH, Math.ceil((this.cam.y + VIEW_H) / CELL_SIZE) + 1);
+    var c, r, kind, x, y;
+    for (r = r0; r < r1; r++) {
+      for (c = c0; c < c1; c++) {
+        kind = Map.getCell(this.map.cells, c, r);
+        x = c * CELL_SIZE;
+        y = r * CELL_SIZE;
+        if (kind === CELL.YARD) {
+          ctx.fillStyle = pats.yard;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        } else if (kind === CELL.FENCE) {
+          ctx.fillStyle = pats.fence;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+          this.ink(ctx);
+          ctx.fillRect(x, y, CELL_SIZE, 1);
+          ctx.fillRect(x, y + CELL_SIZE - 1, CELL_SIZE, 1);
+        } else if (kind === CELL.DRIVEWAY) {
+          ctx.fillStyle = pats.drive;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        } else if (kind === CELL.GRASS) {
+          ctx.fillStyle = pats.grass;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        } else if (kind === CELL.HOME) {
+          ctx.fillStyle = pats.home;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        }
+      }
     }
 
     ctx.fillStyle = pats.home;
     var path = this.map.home.path;
     ctx.fillRect(path.x0, path.y0, path.x1 - path.x0, path.y1 - path.y0);
     var stoop = this.map.home.stoop;
-    ctx.fillRect(stoop.x - 3, stoop.y - 2, 6, 4);
+    ctx.fillRect(stoop.x - 4, stoop.y - 3, 8, 6);
   };
 
   Game.prototype.drawZebra = function (ctx, x0, y0, x1, y1, verticalWalk) {
@@ -509,34 +599,28 @@
     ctx.fillStyle = INK;
     if (verticalWalk) {
       for (var yy = y; yy < y + h; yy++) {
-        if (Math.floor((yy - y) / 3) % 2 === 0) ctx.fillRect(x, yy, w, 1);
+        if (Math.floor((yy - y) / 4) % 2 === 0) ctx.fillRect(x, yy, w, 2);
       }
     } else {
       for (var xx = x; xx < x + w; xx++) {
-        if (Math.floor((xx - x) / 3) % 2 === 0) ctx.fillRect(xx, y, 1, h);
+        if (Math.floor((xx - x) / 4) % 2 === 0) ctx.fillRect(xx, y, 2, h);
       }
     }
   };
 
   Game.prototype.drawBuildings = function (ctx) {
     this.ink(ctx);
-    var home = this.map.home.building;
-    ctx.fillRect(home.x, home.y, home.w, home.h);
-    ctx.fillStyle = BG;
-    ctx.fillRect(home.x + 4, home.y + 5, 4, 4);
-    ctx.fillRect(home.x + home.w - 8, home.y + 5, 4, 4);
-    ctx.fillRect(home.x + home.w / 2 - 2, home.y + home.h - 6, 4, 6);
-    this.ink(ctx);
-    ctx.fillRect(home.x + home.w / 2 - 3, home.y - 5, 6, 5);
-
     for (var i = 0; i < this.map.buildings.length; i++) {
       var b = this.map.buildings[i];
+      if (b.x + b.w < this.cam.x - 4 || b.x > this.cam.x + VIEW_W + 4) continue;
+      if (b.y + b.h < this.cam.y - 8 || b.y > this.cam.y + VIEW_H + 4) continue;
       ctx.fillRect(b.x, b.y, b.w, b.h);
       ctx.fillStyle = BG;
-      ctx.fillRect(b.x + 2, b.y + 3, 3, 3);
-      if (b.w > 12) ctx.fillRect(b.x + b.w - 5, b.y + 3, 3, 3);
+      ctx.fillRect(b.x + 4, b.y + 6, 5, 5);
+      if (b.w > 24) ctx.fillRect(b.x + b.w - 10, b.y + 6, 5, 5);
+      if (b.home) ctx.fillRect(b.x + b.w / 2 - 3, b.y + b.h - 10, 6, 10);
       this.ink(ctx);
-      if (b.roof) ctx.fillRect(b.x + 1, b.y - 3, b.w - 2, 3);
+      if (b.roof) ctx.fillRect(b.x + 2, b.y - 5, b.w - 4, 5);
     }
   };
 
@@ -545,56 +629,56 @@
     var i;
     for (i = 0; i < this.peemail.length; i++) {
       var m = this.peemail[i];
-      ctx.fillRect(m.x - 1, m.y - 1, 3, 2);
+      ctx.fillRect(m.x - 2, m.y - 1, 4, 3);
     }
     for (i = 0; i < this.cars.length; i++) {
       var c = this.cars[i];
       ctx.fillRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h);
       ctx.fillStyle = BG;
-      ctx.fillRect(c.x - 1, c.y - 1, 2, 2);
+      ctx.fillRect(c.x - 2, c.y - 2, 4, 4);
       this.ink(ctx);
     }
     for (i = 0; i < this.people.length; i++) {
       var p = this.people[i];
-      ctx.fillRect(p.x - 2, p.y - 5, 4, 7);
+      ctx.fillRect(p.x - 3, p.y - 8, 6, 11);
     }
     for (i = 0; i < this.dogs.length; i++) {
       var d = this.dogs[i];
-      ctx.fillRect(d.x - 3, d.y - 2, 6, 4);
-      ctx.fillRect(d.x + 2, d.y - 3, 2, 2);
+      ctx.fillRect(d.x - 5, d.y - 3, 9, 6);
+      ctx.fillRect(d.x + 3, d.y - 5, 3, 3);
     }
 
     ctx.beginPath();
-    ctx.moveTo(this.walker.x, this.walker.y - 4);
-    ctx.lineTo(this.momo.x, this.momo.y - 1);
+    ctx.moveTo(this.walker.x, this.walker.y - 6);
+    ctx.lineTo(this.momo.x, this.momo.y - 2);
     ctx.lineWidth = 1;
     ctx.stroke();
 
     ctx.fillStyle = BG;
-    ctx.fillRect(this.walker.x - 3, this.walker.y - 9, 7, 11);
+    ctx.fillRect(this.walker.x - 4, this.walker.y - 12, 9, 14);
     this.ink(ctx);
-    ctx.fillRect(this.walker.x - 2, this.walker.y - 8, 5, 9);
+    ctx.fillRect(this.walker.x - 3, this.walker.y - 11, 7, 12);
     ctx.fillStyle = BG;
-    ctx.fillRect(this.walker.x - 1, this.walker.y - 7, 2, 2);
+    ctx.fillRect(this.walker.x - 1, this.walker.y - 9, 3, 3);
     this.ink(ctx);
 
     var mx = this.momo.x;
     var my = this.momo.y;
     ctx.fillStyle = BG;
-    ctx.fillRect(mx - 5, my - 7, 11, 10);
+    ctx.fillRect(mx - 6, my - 8, 13, 12);
     this.ink(ctx);
-    ctx.fillRect(mx - 4, my - 5, 8, 7);
-    ctx.fillRect(mx - 5, my - 7, 4, 4);
-    ctx.fillRect(mx + 2, my - 7, 4, 4);
+    ctx.fillRect(mx - 5, my - 6, 10, 9);
+    ctx.fillRect(mx - 6, my - 8, 5, 5);
+    ctx.fillRect(mx + 2, my - 8, 5, 5);
     ctx.fillStyle = BG;
-    ctx.fillRect(mx - 1, my - 2, 2, 2);
+    ctx.fillRect(mx - 1, my - 2, 3, 3);
     this.ink(ctx);
-    if (this.interruptFlash > 0) ctx.fillRect(mx - 6, my - 9, 3, 3);
+    if (this.interruptFlash > 0) ctx.fillRect(mx - 7, my - 11, 4, 4);
   };
 
   Game.prototype.drawHud = function (ctx) {
     this.ink(ctx);
-    ctx.fillRect(0, 0, W, 12);
+    ctx.fillRect(0, 0, VIEW_W, 12);
     ctx.fillStyle = BG;
     ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.textBaseline = "top";
@@ -624,20 +708,38 @@
     }
   };
 
+  Game.prototype.drawDebug = function (ctx) {
+    if (!this.debug) return;
+    this.ink(ctx);
+    var lots = this.map.lots;
+    for (var i = 0; i < lots.length; i++) {
+      var lot = lots[i];
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(lot.x0 + 0.5, lot.y0 + 0.5, lot.x1 - lot.x0 - 1, lot.y1 - lot.y0 - 1);
+    }
+    if (this.map.tutorialGrass) {
+      ctx.fillStyle = INK;
+      var g = this.map.tutorialGrass;
+      ctx.fillRect(g.x, g.y, 2, g.h);
+      ctx.fillRect(g.x + g.w - 2, g.y, 2, g.h);
+    }
+  };
+
   Game.prototype.draw = function (ctx) {
     ctx.imageSmoothingEnabled = false;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, VIEW_W, VIEW_H);
+    ctx.clip();
+    ctx.translate(-this.cam.x, -this.cam.y);
     this.drawYardDither(ctx);
     this.drawCells(ctx);
     this.drawBuildings(ctx);
     this.drawActors(ctx);
+    this.drawDebug(ctx);
+    ctx.restore();
     this.drawHud(ctx);
-    if (this.debug) {
-      ctx.fillStyle = "rgba(255,0,0,0.35)";
-      if (this.map.tutorialGrass) {
-        var g = this.map.tutorialGrass;
-        ctx.fillRect(g.x, g.y, g.w, g.h);
-      }
-    }
   };
 
   root.GoMomoGame = { Game: Game, BG: BG, INK: INK, CLOCK: CLOCK };

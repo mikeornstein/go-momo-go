@@ -26,6 +26,11 @@ body {
   align-items: center;
   justify-content: flex-start;
   padding: 16px 12px 32px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(12px + env(safe-area-inset-left, 0px));
+  padding-right: calc(12px + env(safe-area-inset-right, 0px));
+  -webkit-text-size-adjust: 100%;
 }
 
 h1 {
@@ -179,5 +184,40 @@ canvas#game {
 
   canvas#game {
     max-width: calc(100vw - 76px);
+  }
+}
+
+/* iPhone 17 / 17 Pro CSS viewport is 402×874. Keep chrome + 400×240 + d-pad on-screen. */
+@media (max-width: 430px) {
+  h1 {
+    font-size: 1.15rem;
+  }
+
+  .lede {
+    font-size: 0.78rem;
+    margin-bottom: 10px;
+    max-width: 22rem;
+  }
+
+  .device {
+    padding: 12px 40px 12px 12px;
+    border-radius: 20px;
+  }
+
+  .crank {
+    right: 6px;
+    width: 28px;
+    height: 28px;
+    top: 64px;
+  }
+
+  canvas#game {
+    width: min(400px, calc(100vw - 64px));
+    max-width: calc(100vw - 64px);
+  }
+
+  .meta {
+    font-size: 0.75rem;
+    max-width: 22rem;
   }
 }

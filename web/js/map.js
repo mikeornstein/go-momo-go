@@ -1,19 +1,26 @@
 // Procedural neighborhood from real-life street rules. No authored tile map.
-// Plan of record: sidewalks both sides, cars on streets, crosswalks at
-// intersections only, home at center, busy-near / quiet-far, grass on edges.
+// Plan of record: 4×8 square-cell city blocks (houses, lawns, driveways, fences),
+// sidewalks both sides, cars on streets, crosswalks at intersections only,
+// home at center, busy-near / quiet-far, grass on sidewalk/yard edges.
 (function (root) {
   "use strict";
 
-  var W = 400;
-  var H = 240;
-  var MARGIN = 16;
-  var STREET_W = 10;
-  var SIDEWALK_W = 10;
-  var CORRIDOR = STREET_W + SIDEWALK_W * 2;
-  var N_STREETS_X = 4;
-  var N_STREETS_Y = 2;
+  var VIEW_W = 400;
+  var VIEW_H = 240;
+  var CELL = 20;
+  var BLOCK_W = 4;
+  var BLOCK_H = 8;
+  var SW = 1;
+  var ROAD = 2;
+  var CORRIDOR = SW + ROAD + SW;
+  var N_BLOCKS_X = 7;
+  var N_BLOCKS_Y = 5;
+  var GRID_W = N_BLOCKS_X * BLOCK_W + (N_BLOCKS_X + 1) * CORRIDOR;
+  var GRID_H = N_BLOCKS_Y * BLOCK_H + (N_BLOCKS_Y + 1) * CORRIDOR;
+  var WORLD_W = GRID_W * CELL;
+  var WORLD_H = GRID_H * CELL;
 
-  var CELL = {
+  var CELL_KIND = {
     YARD: 0,
     STREET: 1,
     SIDEWALK: 2,
@@ -21,317 +28,372 @@
     GRASS: 4,
     HOME: 5,
     BUILDING: 6,
+    FENCE: 7,
+    DRIVEWAY: 8,
   };
 
   var WALKABLE = {};
-  WALKABLE[CELL.SIDEWALK] = true;
-  WALKABLE[CELL.CROSSWALK] = true;
-  WALKABLE[CELL.GRASS] = true;
-  WALKABLE[CELL.HOME] = true;
+  WALKABLE[CELL_KIND.SIDEWALK] = true;
+  WALKABLE[CELL_KIND.CROSSWALK] = true;
+  WALKABLE[CELL_KIND.GRASS] = true;
+  WALKABLE[CELL_KIND.HOME] = true;
 
-  function idx(x, y) {
-    return y * W + x;
+  function idx(c, r) {
+    return r * GRID_W + c;
   }
 
-  function inBounds(x, y) {
-    return x >= 0 && y >= 0 && x < W && y < H;
+  function inGrid(c, r) {
+    return c >= 0 && r >= 0 && c < GRID_W && r < GRID_H;
   }
 
-  function evenBands(length, margin, streetCount, corridor) {
-    var inner = length - margin * 2;
-    var lotCount = streetCount + 1;
-    var lotSpace = inner - streetCount * corridor;
-    var lot = lotSpace / lotCount;
-    var lots = [];
-    var streets = [];
-    var cursor = margin;
-    for (var i = 0; i < streetCount; i++) {
-      lots.push({ a: cursor, b: cursor + lot });
-      cursor += lot;
-      streets.push({ a: cursor, b: cursor + corridor });
-      cursor += corridor;
-    }
-    lots.push({ a: cursor, b: cursor + lot });
-    return { lots: lots, streets: streets, lot: lot };
+  function px(n) {
+    return n * CELL;
   }
 
-  function decorateStreetX(band) {
-    return {
-      a: band.a,
-      b: band.b,
-      walkL0: band.a,
-      walkL1: band.a + SIDEWALK_W,
-      asphalt0: band.a + SIDEWALK_W,
-      asphalt1: band.b - SIDEWALK_W,
-      walkR0: band.b - SIDEWALK_W,
-      walkR1: band.b,
-      center: (band.a + band.b) / 2,
-      asphaltCenter: band.a + SIDEWALK_W + STREET_W / 2,
-    };
+  function cellOf(x, y) {
+    return { c: Math.floor(x / CELL), r: Math.floor(y / CELL) };
   }
 
-  function decorateStreetY(band) {
-    return {
-      a: band.a,
-      b: band.b,
-      walkT0: band.a,
-      walkT1: band.a + SIDEWALK_W,
-      asphalt0: band.a + SIDEWALK_W,
-      asphalt1: band.b - SIDEWALK_W,
-      walkB0: band.b - SIDEWALK_W,
-      walkB1: band.b,
-      center: (band.a + band.b) / 2,
-      asphaltCenter: band.a + SIDEWALK_W + STREET_W / 2,
-    };
-  }
-
-  function stamp(cells, x0, y0, x1, y1, kind) {
-    var xa = Math.max(0, Math.floor(x0));
-    var ya = Math.max(0, Math.floor(y0));
-    var xb = Math.min(W, Math.ceil(x1));
-    var yb = Math.min(H, Math.ceil(y1));
-    for (var y = ya; y < yb; y++) {
-      for (var x = xa; x < xb; x++) {
-        cells[idx(x, y)] = kind;
+  function stamp(cells, c0, r0, c1, r1, kind) {
+    var ca = Math.max(0, Math.floor(c0));
+    var ra = Math.max(0, Math.floor(r0));
+    var cb = Math.min(GRID_W, Math.ceil(c1));
+    var rb = Math.min(GRID_H, Math.ceil(r1));
+    for (var r = ra; r < rb; r++) {
+      for (var c = ca; c < cb; c++) {
+        cells[idx(c, r)] = kind;
       }
     }
   }
 
-  function get(cells, x, y) {
-    if (!inBounds(x, y)) return CELL.YARD;
-    return cells[idx(x | 0, y | 0)];
+  function getCell(cells, c, r) {
+    if (!inGrid(c, r)) return CELL_KIND.YARD;
+    return cells[idx(c, r)];
+  }
+
+  function get(map, x, y) {
+    var t = cellOf(x, y);
+    return getCell(map.cells, t.c, t.r);
   }
 
   function isWalkableKind(kind) {
     return WALKABLE[kind] === true;
   }
 
-  function isWalkableAt(cells, x, y) {
-    return isWalkableKind(get(cells, Math.floor(x), Math.floor(y)));
+  function isWalkableAt(map, x, y) {
+    return isWalkableKind(get(map, x, y));
   }
 
   function densityAt(x, y) {
-    var dx = (x - W / 2) / (W / 2);
-    var dy = (y - H / 2) / (H / 2);
+    var dx = (x - WORLD_W / 2) / (WORLD_W / 2);
+    var dy = (y - WORLD_H / 2) / (WORLD_H / 2);
     var d = Math.sqrt(dx * dx + dy * dy);
     return Math.max(0, 1 - Math.min(1.15, d));
   }
 
-  function lotCenter(lot) {
-    return { x: (lot.x0 + lot.x1) / 2, y: (lot.y0 + lot.y1) / 2 };
+  function decorateStreetX(col0) {
+    var walkL0 = px(col0);
+    var walkL1 = px(col0 + SW);
+    var asphalt0 = walkL1;
+    var asphalt1 = px(col0 + SW + ROAD);
+    var walkR0 = asphalt1;
+    var walkR1 = px(col0 + CORRIDOR);
+    return {
+      col0: col0,
+      a: walkL0,
+      b: walkR1,
+      walkL0: walkL0,
+      walkL1: walkL1,
+      asphalt0: asphalt0,
+      asphalt1: asphalt1,
+      walkR0: walkR0,
+      walkR1: walkR1,
+      center: (walkL0 + walkR1) / 2,
+      asphaltCenter: (asphalt0 + asphalt1) / 2,
+    };
   }
 
-  function paintVerticalStreets(cells, vStreets, y0, y1) {
+  function decorateStreetY(row0) {
+    var walkT0 = px(row0);
+    var walkT1 = px(row0 + SW);
+    var asphalt0 = walkT1;
+    var asphalt1 = px(row0 + SW + ROAD);
+    var walkB0 = asphalt1;
+    var walkB1 = px(row0 + CORRIDOR);
+    return {
+      row0: row0,
+      a: walkT0,
+      b: walkB1,
+      walkT0: walkT0,
+      walkT1: walkT1,
+      asphalt0: asphalt0,
+      asphalt1: asphalt1,
+      walkB0: walkB0,
+      walkB1: walkB1,
+      center: (walkT0 + walkB1) / 2,
+      asphaltCenter: (asphalt0 + asphalt1) / 2,
+    };
+  }
+
+  function paintVerticalStreets(cells, vStreets) {
     for (var i = 0; i < vStreets.length; i++) {
-      var s = vStreets[i];
-      stamp(cells, s.walkL0, y0, s.walkL1, y1, CELL.SIDEWALK);
-      stamp(cells, s.asphalt0, y0, s.asphalt1, y1, CELL.STREET);
-      stamp(cells, s.walkR0, y0, s.walkR1, y1, CELL.SIDEWALK);
+      var col0 = vStreets[i].col0;
+      stamp(cells, col0, 0, col0 + SW, GRID_H, CELL_KIND.SIDEWALK);
+      stamp(cells, col0 + SW, 0, col0 + SW + ROAD, GRID_H, CELL_KIND.STREET);
+      stamp(cells, col0 + SW + ROAD, 0, col0 + CORRIDOR, GRID_H, CELL_KIND.SIDEWALK);
     }
   }
 
-  function paintHorizontalStreets(cells, hStreets, x0, x1) {
+  function paintHorizontalStreets(cells, hStreets) {
     for (var i = 0; i < hStreets.length; i++) {
-      var s = hStreets[i];
-      for (var y = Math.floor(s.a); y < Math.ceil(s.b); y++) {
-        var inAsphalt = y >= s.asphalt0 && y < s.asphalt1;
-        for (var x = Math.floor(x0); x < Math.ceil(x1); x++) {
-          var iCell = idx(x, y);
+      var row0 = hStreets[i].row0;
+      for (var r = row0; r < row0 + CORRIDOR; r++) {
+        var inAsphalt = r >= row0 + SW && r < row0 + SW + ROAD;
+        for (var c = 0; c < GRID_W; c++) {
+          var iCell = idx(c, r);
           var cur = cells[iCell];
           if (inAsphalt) {
-            cells[iCell] = cur === CELL.SIDEWALK ? CELL.CROSSWALK : CELL.STREET;
-          } else if (cur === CELL.STREET) {
-            cells[iCell] = CELL.CROSSWALK;
+            cells[iCell] = cur === CELL_KIND.SIDEWALK ? CELL_KIND.CROSSWALK : CELL_KIND.STREET;
+          } else if (cur === CELL_KIND.STREET) {
+            cells[iCell] = CELL_KIND.CROSSWALK;
           } else {
-            cells[iCell] = CELL.SIDEWALK;
+            cells[iCell] = CELL_KIND.SIDEWALK;
           }
         }
       }
     }
   }
 
-  function buildLots(xLayout, yLayout) {
+  function blockOrigin(col, row) {
+    return {
+      c: CORRIDOR + col * (BLOCK_W + CORRIDOR),
+      r: CORRIDOR + row * (BLOCK_H + CORRIDOR),
+    };
+  }
+
+  function buildLots() {
     var lots = [];
-    for (var j = 0; j < yLayout.lots.length; j++) {
-      for (var i = 0; i < xLayout.lots.length; i++) {
+    var homeCol = Math.floor(N_BLOCKS_X / 2);
+    var homeRow = Math.floor(N_BLOCKS_Y / 2);
+    for (var j = 0; j < N_BLOCKS_Y; j++) {
+      for (var i = 0; i < N_BLOCKS_X; i++) {
+        var o = blockOrigin(i, j);
         var lot = {
           col: i,
           row: j,
-          x0: xLayout.lots[i].a,
-          x1: xLayout.lots[i].b,
-          y0: yLayout.lots[j].a,
-          y1: yLayout.lots[j].b,
+          c0: o.c,
+          r0: o.r,
+          c1: o.c + BLOCK_W,
+          r1: o.r + BLOCK_H,
+          x0: px(o.c),
+          y0: px(o.r),
+          x1: px(o.c + BLOCK_W),
+          y1: px(o.r + BLOCK_H),
         };
-        var c = lotCenter(lot);
-        lot.cx = c.x;
-        lot.cy = c.y;
-        lot.density = densityAt(c.x, c.y);
-        lot.isHome = i === Math.floor(xLayout.lots.length / 2) && j === Math.floor(yLayout.lots.length / 2);
+        lot.cx = (lot.x0 + lot.x1) / 2;
+        lot.cy = (lot.y0 + lot.y1) / 2;
+        lot.density = densityAt(lot.cx, lot.cy);
+        lot.isHome = i === homeCol && j === homeRow;
         lots.push(lot);
       }
     }
     return lots;
   }
 
-  function rectHitsKind(cells, x0, y0, x1, y1, kind) {
-    for (var y = Math.floor(y0); y < Math.ceil(y1); y++) {
-      for (var x = Math.floor(x0); x < Math.ceil(x1); x++) {
-        if (get(cells, x, y) === kind) return true;
-      }
-    }
-    return false;
+  function localSet(local, c, r, kind) {
+    if (c < 0 || r < 0 || c >= BLOCK_W || r >= BLOCK_H) return;
+    local[r * BLOCK_W + c] = kind;
   }
 
-  function placeBuildings(cells, lots, rng) {
-    var buildings = [];
-    for (var i = 0; i < lots.length; i++) {
-      var lot = lots[i];
-      if (lot.isHome) continue;
-      var count;
-      if (lot.density > 0.5) count = 3;
-      else if (lot.density > 0.32) count = 2;
-      else if (lot.density > 0.18) count = rng.chance(0.5) ? 1 : 0;
-      else count = rng.chance(0.2) ? 1 : 0;
-      var inset = 7;
-      var innerW = lot.x1 - lot.x0 - inset * 2;
-      var innerH = lot.y1 - lot.y0 - inset * 2;
-      if (innerW < 10 || innerH < 10) continue;
-      var attempts = 0;
-      var placed = 0;
-      while (placed < count && attempts < count * 8) {
-        attempts++;
-        var bw = rng.int(10, Math.min(18, Math.floor(innerW)));
-        var bh = rng.int(12, Math.min(20, Math.floor(innerH)));
-        var bx = rng.float(lot.x0 + inset, lot.x1 - inset - bw);
-        var by = rng.float(lot.y0 + inset, lot.y1 - inset - bh);
-        if (rectHitsKind(cells, bx, by, bx + bw, by + bh, CELL.SIDEWALK)) continue;
-        if (rectHitsKind(cells, bx, by, bx + bw, by + bh, CELL.STREET)) continue;
-        stamp(cells, bx, by, bx + bw, by + bh, CELL.BUILDING);
-        buildings.push({ x: bx, y: by, w: bw, h: bh, roof: rng.chance(0.7) });
-        placed++;
-      }
-    }
-    return buildings;
+  function localGet(local, c, r) {
+    if (c < 0 || r < 0 || c >= BLOCK_W || r >= BLOCK_H) return CELL_KIND.YARD;
+    return local[r * BLOCK_W + c];
   }
 
-  function placeHome(cells, homeLot) {
-    var bw = 22;
-    var bh = 18;
-    var bx = homeLot.cx - bw / 2;
-    var by = homeLot.cy - bh / 2 - 3;
-    stamp(cells, bx, by, bx + bw, by + bh, CELL.BUILDING);
-    var doorW = 6;
-    var doorH = 4;
-    var doorX = homeLot.cx - doorW / 2;
-    var doorY = by + bh;
-    stamp(cells, doorX, doorY, doorX + doorW, doorY + doorH, CELL.HOME);
-    var pathW = 6;
-    var pathX = homeLot.cx - pathW / 2;
-    var pathY0 = doorY + doorH;
-    var pathY1 = homeLot.y1;
-    stamp(cells, pathX, pathY0, pathX + pathW, pathY1, CELL.HOME);
+  function fencePerimeter(local) {
+    var c, r;
+    for (c = 0; c < BLOCK_W; c++) {
+      localSet(local, c, 0, CELL_KIND.FENCE);
+      localSet(local, c, BLOCK_H - 1, CELL_KIND.FENCE);
+    }
+    for (r = 0; r < BLOCK_H; r++) {
+      localSet(local, 0, r, CELL_KIND.FENCE);
+      localSet(local, BLOCK_W - 1, r, CELL_KIND.FENCE);
+    }
+  }
+
+  function placeHouseFacing(local, face, rng, buildings, origin) {
+    var pair = rng.int(0, 2);
+    var c0 = pair === 2 ? 2 : pair;
+    var c1 = c0 + 1;
+    var driveOptions = [];
+    var c;
+    for (c = 0; c < BLOCK_W; c++) {
+      if (c !== c0 && c !== c1) driveOptions.push(c);
+    }
+    var drive = rng.pick(driveOptions);
+    var rHouse0;
+    var rHouse1;
+    var rDrive0;
+    var rDrive1;
+    var rFront;
+    if (face === "n") {
+      rHouse0 = 1;
+      rHouse1 = 2;
+      rDrive0 = 0;
+      rDrive1 = 2;
+      rFront = 0;
+    } else {
+      rHouse0 = 5;
+      rHouse1 = 6;
+      rDrive0 = 5;
+      rDrive1 = 7;
+      rFront = 7;
+    }
+    var r;
+    for (r = rHouse0; r <= rHouse1; r++) {
+      localSet(local, c0, r, CELL_KIND.BUILDING);
+      localSet(local, c1, r, CELL_KIND.BUILDING);
+    }
+    for (r = rDrive0; r <= rDrive1; r++) {
+      localSet(local, drive, r, CELL_KIND.DRIVEWAY);
+    }
+    for (c = 0; c < BLOCK_W; c++) {
+      if (c === drive) continue;
+      localSet(local, c, rFront, CELL_KIND.GRASS);
+    }
+    buildings.push({
+      x: px(origin.c + c0),
+      y: px(origin.r + rHouse0),
+      w: CELL * 2,
+      h: CELL * 2,
+      roof: rng.chance(0.75),
+    });
+  }
+
+  function punchGrassOpening(local, rng) {
+    var side = rng.pick(["n", "s", "e", "w"]);
+    var i;
+    if (side === "n") {
+      for (i = 1; i <= 2; i++) {
+        if (localGet(local, i, 0) === CELL_KIND.FENCE) localSet(local, i, 0, CELL_KIND.GRASS);
+      }
+    } else if (side === "s") {
+      for (i = 1; i <= 2; i++) {
+        if (localGet(local, i, BLOCK_H - 1) === CELL_KIND.FENCE) localSet(local, i, BLOCK_H - 1, CELL_KIND.GRASS);
+      }
+    } else if (side === "w") {
+      for (i = 3; i <= 4; i++) {
+        if (localGet(local, 0, i) === CELL_KIND.FENCE) localSet(local, 0, i, CELL_KIND.GRASS);
+      }
+    } else {
+      for (i = 3; i <= 4; i++) {
+        if (localGet(local, BLOCK_W - 1, i) === CELL_KIND.FENCE) localSet(local, BLOCK_W - 1, i, CELL_KIND.GRASS);
+      }
+    }
+  }
+
+  function layoutHome(local, buildings, origin) {
+    fencePerimeter(local);
+    var c, r;
+    for (c = 1; c <= 2; c++) {
+      for (r = 2; r <= 4; r++) localSet(local, c, r, CELL_KIND.BUILDING);
+      localSet(local, c, 5, CELL_KIND.HOME);
+      localSet(local, c, 6, CELL_KIND.HOME);
+      localSet(local, c, 7, CELL_KIND.HOME);
+      localSet(local, c, 1, CELL_KIND.GRASS);
+    }
+    localSet(local, 0, 1, CELL_KIND.GRASS);
+    localSet(local, 3, 1, CELL_KIND.GRASS);
+    buildings.push({
+      x: px(origin.c + 1),
+      y: px(origin.r + 2),
+      w: CELL * 2,
+      h: CELL * 3,
+      roof: true,
+      home: true,
+    });
     return {
-      building: { x: bx, y: by, w: bw, h: bh },
-      stoop: { x: doorX + doorW / 2, y: doorY + doorH / 2 },
-      path: { x0: pathX, y0: pathY0, x1: pathX + pathW, y1: pathY1 },
+      building: { x: px(origin.c + 1), y: px(origin.r + 2), w: CELL * 2, h: CELL * 3 },
+      stoop: { x: px(origin.c + 1) + CELL, y: px(origin.r + 5) + CELL / 2 },
+      path: {
+        x0: px(origin.c + 1),
+        y0: px(origin.r + 5),
+        x1: px(origin.c + 3),
+        y1: px(origin.r + BLOCK_H),
+      },
     };
   }
 
-  function edgeTouchesSidewalk(cells, x, y) {
-    return (
-      get(cells, x - 1, y) === CELL.SIDEWALK ||
-      get(cells, x + 1, y) === CELL.SIDEWALK ||
-      get(cells, x, y - 1) === CELL.SIDEWALK ||
-      get(cells, x, y + 1) === CELL.SIDEWALK
-    );
+  function layoutLot(local, lot, rng, buildings) {
+    var origin = { c: lot.c0, r: lot.r0 };
+    var c, r;
+    for (r = 0; r < BLOCK_H; r++) {
+      for (c = 0; c < BLOCK_W; c++) localSet(local, c, r, CELL_KIND.YARD);
+    }
+    if (lot.isHome) return layoutHome(local, buildings, origin);
+
+    fencePerimeter(local);
+    var nHouses;
+    if (lot.density > 0.55) nHouses = 2;
+    else if (lot.density > 0.32) nHouses = 1;
+    else if (lot.density > 0.15) nHouses = rng.chance(0.55) ? 1 : 0;
+    else nHouses = rng.chance(0.22) ? 1 : 0;
+
+    if (nHouses >= 1) {
+      var first = rng.chance(0.5) ? "n" : "s";
+      placeHouseFacing(local, first, rng, buildings, origin);
+      if (nHouses >= 2) placeHouseFacing(local, first === "n" ? "s" : "n", rng, buildings, origin);
+    } else {
+      punchGrassOpening(local, rng);
+    }
+    return null;
   }
 
-  function placeGrass(cells, lots, rng, home) {
+  function stampLocal(cells, lot, local) {
+    var r, c;
+    for (r = 0; r < BLOCK_H; r++) {
+      for (c = 0; c < BLOCK_W; c++) {
+        cells[idx(lot.c0 + c, lot.r0 + r)] = local[r * BLOCK_W + c];
+      }
+    }
+  }
+
+  function collectGrass(cells, lots, home) {
     var patches = [];
-    var homeLot = lots.filter(function (l) {
-      return l.isHome;
-    })[0];
-    for (var i = 0; i < lots.length; i++) {
-      var lot = lots[i];
-      var rim = 7;
-      var edges = [
-        { x0: lot.x0, y0: lot.y0, x1: lot.x0 + rim, y1: lot.y1 },
-        { x0: lot.x1 - rim, y0: lot.y0, x1: lot.x1, y1: lot.y1 },
-        { x0: lot.x0, y0: lot.y0, x1: lot.x1, y1: lot.y0 + rim },
-        { x0: lot.x0, y0: lot.y1 - rim, x1: lot.x1, y1: lot.y1 },
-      ];
-      for (var e = 0; e < edges.length; e++) {
-        var edge = edges[e];
-        var tries = lot.isHome ? 4 : 1 + Math.floor(lot.density * 2);
-        for (var t = 0; t < tries; t++) {
-          var gw = rng.int(10, 16);
-          var gh = rng.int(6, 9);
-          var gx = rng.float(edge.x0, Math.max(edge.x0, edge.x1 - gw));
-          var gy = rng.float(edge.y0, Math.max(edge.y0, edge.y1 - gh));
-          if (lot.isHome && gx < home.path.x1 && gx + gw > home.path.x0 && gy + gh > home.path.y0) {
-            continue;
-          }
-          var overlapsBuilding = rectHitsKind(cells, gx, gy, gx + gw, gy + gh, CELL.BUILDING);
-          var overlapsHome = rectHitsKind(cells, gx, gy, gx + gw, gy + gh, CELL.HOME);
-          if (overlapsBuilding || overlapsHome) continue;
-          var cx = Math.floor(gx + gw / 2);
-          var cy = Math.floor(gy + gh / 2);
-          if (!edgeTouchesSidewalk(cells, Math.floor(gx), cy) && !edgeTouchesSidewalk(cells, cx, Math.floor(gy))) {
-            if (!edgeTouchesSidewalk(cells, Math.floor(gx + gw - 1), cy)) continue;
-          }
-          stamp(cells, gx, gy, gx + gw, gy + gh, CELL.GRASS);
+    var r, c, L;
+    for (L = 0; L < lots.length; L++) {
+      var lot = lots[L];
+      for (r = lot.r0; r < lot.r1; r++) {
+        for (c = lot.c0; c < lot.c1; c++) {
+          if (getCell(cells, c, r) !== CELL_KIND.GRASS) continue;
+          var gx = px(c);
+          var gy = px(r);
           patches.push({
             x: gx,
             y: gy,
-            w: gw,
-            h: gh,
-            cx: gx + gw / 2,
-            cy: gy + gh / 2,
+            w: CELL,
+            h: CELL,
+            cx: gx + CELL / 2,
+            cy: gy + CELL / 2,
             homeLot: lot.isHome,
-            dist: Math.hypot(gx + gw / 2 - W / 2, gy + gh / 2 - H / 2),
+            dist: Math.hypot(gx + CELL / 2 - home.stoop.x, gy + CELL / 2 - home.stoop.y),
           });
         }
       }
     }
-
     var tutorial = null;
     var homePatches = patches.filter(function (p) {
       return p.homeLot;
     });
-    if (homePatches.length) {
-      tutorial = homePatches[0];
-      for (var p = 1; p < homePatches.length; p++) {
-        if (homePatches[p].dist < tutorial.dist) tutorial = homePatches[p];
+    var pool = homePatches.length ? homePatches : patches;
+    if (pool.length) {
+      tutorial = pool[0];
+      for (var p = 1; p < pool.length; p++) {
+        if (pool[p].dist < tutorial.dist) tutorial = pool[p];
       }
-    } else if (patches.length) {
-      tutorial = patches[0];
-      for (var q = 1; q < patches.length; q++) {
-        if (patches[q].dist < tutorial.dist) tutorial = patches[q];
-      }
+      tutorial.tutorial = true;
     }
-    if (!tutorial) {
-      var gx = homeLot.x0 + 1;
-      var gw = 8;
-      var gh = 10;
-      var gy = home.stoop.y - gh / 2;
-      if (gy < homeLot.y0 + 1) gy = homeLot.y0 + 1;
-      if (gy + gh > homeLot.y1 - 1) gy = homeLot.y1 - gh - 1;
-      if (gx + gw < home.path.x0) {
-        stamp(cells, gx, gy, gx + gw, gy + gh, CELL.GRASS);
-        tutorial = {
-          x: gx,
-          y: gy,
-          w: gw,
-          h: gh,
-          cx: gx + gw / 2,
-          cy: gy + gh / 2,
-          homeLot: true,
-          dist: Math.hypot(gx + gw / 2 - W / 2, gy + gh / 2 - H / 2),
-        };
-        patches.push(tutorial);
-      }
-    }
-    if (tutorial) tutorial.tutorial = true;
     return { patches: patches, tutorial: tutorial };
   }
 
@@ -340,14 +402,14 @@
     var street = [];
     var grass = [];
     var crosswalk = [];
-    for (var y = 0; y < H; y++) {
-      for (var x = 0; x < W; x++) {
-        var k = cells[idx(x, y)];
-        var sample = { x: x + 0.5, y: y + 0.5, density: densityAt(x, y) };
-        if (k === CELL.SIDEWALK) sidewalk.push(sample);
-        else if (k === CELL.STREET) street.push(sample);
-        else if (k === CELL.GRASS) grass.push(sample);
-        else if (k === CELL.CROSSWALK) crosswalk.push(sample);
+    for (var r = 0; r < GRID_H; r++) {
+      for (var c = 0; c < GRID_W; c++) {
+        var k = cells[idx(c, r)];
+        var sample = { x: px(c) + CELL / 2, y: px(r) + CELL / 2, density: densityAt(px(c) + CELL / 2, px(r) + CELL / 2) };
+        if (k === CELL_KIND.SIDEWALK) sidewalk.push(sample);
+        else if (k === CELL_KIND.STREET) street.push(sample);
+        else if (k === CELL_KIND.GRASS) grass.push(sample);
+        else if (k === CELL_KIND.CROSSWALK) crosswalk.push(sample);
       }
     }
     return { sidewalk: sidewalk, street: street, grass: grass, crosswalk: crosswalk };
@@ -377,102 +439,126 @@
     return pickFrom(near, rng, nNear).concat(pickFrom(far, rng, nFar));
   }
 
-  function carLanes(vStreets, hStreets, x0, x1, y0, y1) {
+  function carLanes(vStreets, hStreets) {
     var lanes = [];
-    for (var i = 0; i < vStreets.length; i++) {
+    var i;
+    for (i = 0; i < vStreets.length; i++) {
       lanes.push({
         axis: "y",
         x: vStreets[i].asphaltCenter,
-        y0: y0,
-        y1: y1,
+        y0: 0,
+        y1: WORLD_H,
         x0: vStreets[i].asphalt0,
         x1: vStreets[i].asphalt1,
       });
     }
-    for (var j = 0; j < hStreets.length; j++) {
+    for (i = 0; i < hStreets.length; i++) {
       lanes.push({
         axis: "x",
-        y: hStreets[j].asphaltCenter,
-        x0: x0,
-        x1: x1,
-        y0: hStreets[j].asphalt0,
-        y1: hStreets[j].asphalt1,
+        y: hStreets[i].asphaltCenter,
+        x0: 0,
+        x1: WORLD_W,
+        y0: hStreets[i].asphalt0,
+        y1: hStreets[i].asphalt1,
       });
     }
     return lanes;
   }
 
   function floodWalkable(cells, sx, sy) {
-    var seen = new Uint8Array(W * H);
-    var stack = [[sx | 0, sy | 0]];
-    var reached = { grass: false, crosswalk: false, sidewalk: false, farGrass: false };
+    var start = cellOf(sx, sy);
+    var seen = new Uint8Array(GRID_W * GRID_H);
+    var stack = [[start.c, start.r]];
+    var reached = { grass: false, crosswalk: false, sidewalk: false, farGrass: false, home: false };
     var n = 0;
     while (stack.length) {
       var p = stack.pop();
-      var x = p[0];
-      var y = p[1];
-      if (!inBounds(x, y)) continue;
-      var i = idx(x, y);
+      var c = p[0];
+      var r = p[1];
+      if (!inGrid(c, r)) continue;
+      var i = idx(c, r);
       if (seen[i]) continue;
       if (!isWalkableKind(cells[i])) continue;
       seen[i] = 1;
       n++;
-      if (cells[i] === CELL.GRASS) {
+      if (cells[i] === CELL_KIND.GRASS) {
         reached.grass = true;
-        if (densityAt(x, y) < 0.45) reached.farGrass = true;
+        if (densityAt(px(c) + CELL / 2, px(r) + CELL / 2) < 0.45) reached.farGrass = true;
       }
-      if (cells[i] === CELL.CROSSWALK) reached.crosswalk = true;
-      if (cells[i] === CELL.SIDEWALK) reached.sidewalk = true;
-      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      if (cells[i] === CELL_KIND.CROSSWALK) reached.crosswalk = true;
+      if (cells[i] === CELL_KIND.SIDEWALK) reached.sidewalk = true;
+      if (cells[i] === CELL_KIND.HOME) reached.home = true;
+      stack.push([c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]);
     }
     reached.tiles = n;
     return reached;
   }
 
+  function lotHasKind(cells, lot, kind) {
+    for (var r = lot.r0; r < lot.r1; r++) {
+      for (var c = lot.c0; c < lot.c1; c++) {
+        if (getCell(cells, c, r) === kind) return true;
+      }
+    }
+    return false;
+  }
+
   function generateNeighborhood(seed) {
     var rng = new root.GoMomoRng.Rng(seed);
-    var cells = new Uint8Array(W * H);
-    var xLayout = evenBands(W, MARGIN, N_STREETS_X, CORRIDOR);
-    var yLayout = evenBands(H, MARGIN, N_STREETS_Y, CORRIDOR);
-    var vStreets = xLayout.streets.map(decorateStreetX);
-    var hStreets = yLayout.streets.map(decorateStreetY);
-    var innerX0 = MARGIN;
-    var innerX1 = W - MARGIN;
-    var innerY0 = MARGIN;
-    var innerY1 = H - MARGIN;
+    var cells = new Uint8Array(GRID_W * GRID_H);
+    var vStreets = [];
+    var hStreets = [];
+    var i;
+    for (i = 0; i < N_BLOCKS_X + 1; i++) vStreets.push(decorateStreetX(i * (BLOCK_W + CORRIDOR)));
+    for (i = 0; i < N_BLOCKS_Y + 1; i++) hStreets.push(decorateStreetY(i * (BLOCK_H + CORRIDOR)));
 
-    paintVerticalStreets(cells, vStreets, innerY0, innerY1);
-    paintHorizontalStreets(cells, hStreets, innerX0, innerX1);
+    paintVerticalStreets(cells, vStreets);
+    paintHorizontalStreets(cells, hStreets);
 
-    var lots = buildLots(xLayout, yLayout);
-    var homeLot = lots.filter(function (l) {
-      return l.isHome;
-    })[0];
-    var home = placeHome(cells, homeLot);
-    var buildings = placeBuildings(cells, lots, rng);
-    var grass = placeGrass(cells, lots, rng, home);
+    var lots = buildLots();
+    var buildings = [];
+    var home = null;
+    var homeLot = null;
+    for (i = 0; i < lots.length; i++) {
+      var local = new Uint8Array(BLOCK_W * BLOCK_H);
+      var placed = layoutLot(local, lots[i], rng, buildings);
+      stampLocal(cells, lots[i], local);
+      if (lots[i].isHome) {
+        home = placed;
+        homeLot = lots[i];
+      }
+    }
+
+    var grass = collectGrass(cells, lots, home);
     var samples = collectSamples(cells);
 
-    var peopleN = 5 + rng.int(0, 3);
+    var peopleN = 6 + rng.int(0, 3);
     var dogsN = 2 + rng.int(0, 2);
-    var mailN = 4 + rng.int(0, 3);
-    var calmX = grass.tutorial ? grass.tutorial.cx : W / 2;
-    var calmY = grass.tutorial ? grass.tutorial.cy : H / 2;
+    var mailN = 5 + rng.int(0, 3);
+    var calmX = grass.tutorial ? grass.tutorial.cx : home.stoop.x;
+    var calmY = grass.tutorial ? grass.tutorial.cy : home.stoop.y;
     function awayFromTutorial(list) {
       return list.filter(function (s) {
-        return Math.hypot(s.x - calmX, s.y - calmY) > 20;
+        return Math.hypot(s.x - calmX, s.y - calmY) > CELL * 2.5;
       });
     }
     var sidewalkAway = awayFromTutorial(samples.sidewalk);
-    var people = pickBusyQuiet(sidewalkAway, rng, peopleN, 0.78);
-    var dogs = pickBusyQuiet(sidewalkAway, rng, dogsN, 0.82);
-    var peemail = pickBusyQuiet(sidewalkAway, rng, mailN, 0.75);
+    var people = pickBusyQuiet(sidewalkAway, rng, peopleN, 0.8);
+    var dogs = pickBusyQuiet(sidewalkAway, rng, dogsN, 0.84);
+    var peemail = pickBusyQuiet(sidewalkAway, rng, mailN, 0.78);
 
-    var lanes = carLanes(vStreets, hStreets, innerX0, innerX1, innerY0, innerY1);
+    var lanes = carLanes(vStreets, hStreets);
+    var ranked = lanes.slice().sort(function (a, b) {
+      var ax = a.axis === "y" ? a.x : (a.x0 + a.x1) / 2;
+      var ay = a.axis === "y" ? (a.y0 + a.y1) / 2 : a.y;
+      var bx = b.axis === "y" ? b.x : (b.x0 + b.x1) / 2;
+      var by = b.axis === "y" ? (b.y0 + b.y1) / 2 : b.y;
+      return Math.hypot(ax - WORLD_W / 2, ay - WORLD_H / 2) - Math.hypot(bx - WORLD_W / 2, by - WORLD_H / 2);
+    });
     var cars = [];
-    var carCount = Math.min(lanes.length, 4);
-    for (var c = 0; c < carCount; c++) {
-      var lane = lanes[c];
+    var carCount = Math.min(ranked.length, 7);
+    for (var ci = 0; ci < carCount; ci++) {
+      var lane = ranked[ci];
       var along = rng.next();
       var car;
       if (lane.axis === "y") {
@@ -481,7 +567,7 @@
           y: lane.y0 + along * (lane.y1 - lane.y0),
           axis: "y",
           dir: rng.chance(0.5) ? 1 : -1,
-          lane: c,
+          lane: ci,
         };
       } else {
         car = {
@@ -489,7 +575,7 @@
           y: lane.y,
           axis: "x",
           dir: rng.chance(0.5) ? 1 : -1,
-          lane: c,
+          lane: ci,
         };
       }
       cars.push(car);
@@ -498,8 +584,15 @@
     var reach = floodWalkable(cells, home.stoop.x, home.stoop.y);
 
     return {
-      w: W,
-      h: H,
+      w: WORLD_W,
+      h: WORLD_H,
+      worldW: WORLD_W,
+      worldH: WORLD_H,
+      gridW: GRID_W,
+      gridH: GRID_H,
+      cell: CELL,
+      blockW: BLOCK_W,
+      blockH: BLOCK_H,
       seed: rng.seed,
       cells: cells,
       vStreets: vStreets,
@@ -514,41 +607,56 @@
       spawns: { people: people, dogs: dogs, peemail: peemail, cars: cars },
       lanes: lanes,
       reach: reach,
-      inner: { x0: innerX0, x1: innerX1, y0: innerY0, y1: innerY1 },
+      inner: { x0: 0, x1: WORLD_W, y0: 0, y1: WORLD_H },
     };
   }
 
   function sidewalksBothSides(map) {
     for (var i = 0; i < map.vStreets.length; i++) {
       var s = map.vStreets[i];
-      if (s.walkL1 - s.walkL0 < SIDEWALK_W - 0.01) return false;
-      if (s.walkR1 - s.walkR0 < SIDEWALK_W - 0.01) return false;
+      if (s.walkL1 - s.walkL0 < px(SW) - 0.01) return false;
+      if (s.walkR1 - s.walkR0 < px(SW) - 0.01) return false;
     }
     for (var j = 0; j < map.hStreets.length; j++) {
       var h = map.hStreets[j];
-      if (h.walkT1 - h.walkT0 < SIDEWALK_W - 0.01) return false;
-      if (h.walkB1 - h.walkB0 < SIDEWALK_W - 0.01) return false;
+      if (h.walkT1 - h.walkT0 < px(SW) - 0.01) return false;
+      if (h.walkB1 - h.walkB0 < px(SW) - 0.01) return false;
     }
     return true;
   }
 
   function homeContainsCenter(map) {
     var lot = map.homeLot;
-    return lot.x0 <= W / 2 && W / 2 < lot.x1 && lot.y0 <= H / 2 && H / 2 < lot.y1;
+    return lot.x0 <= WORLD_W / 2 && WORLD_W / 2 < lot.x1 && lot.y0 <= WORLD_H / 2 && WORLD_H / 2 < lot.y1;
   }
 
   var api = {
-    W: W,
-    H: H,
-    CELL: CELL,
+    W: VIEW_W,
+    H: VIEW_H,
+    VIEW_W: VIEW_W,
+    VIEW_H: VIEW_H,
+    CELL_SIZE: CELL,
+    BLOCK_W: BLOCK_W,
+    BLOCK_H: BLOCK_H,
+    GRID_W: GRID_W,
+    GRID_H: GRID_H,
+    WORLD_W: WORLD_W,
+    WORLD_H: WORLD_H,
+    N_BLOCKS_X: N_BLOCKS_X,
+    N_BLOCKS_Y: N_BLOCKS_Y,
+    CELL_KIND: CELL_KIND,
+    CELL: CELL_KIND,
     generateNeighborhood: generateNeighborhood,
     get: get,
+    getCell: getCell,
     isWalkableAt: isWalkableAt,
     isWalkableKind: isWalkableKind,
     densityAt: densityAt,
     sidewalksBothSides: sidewalksBothSides,
     homeContainsCenter: homeContainsCenter,
+    lotHasKind: lotHasKind,
     idx: idx,
+    cellOf: cellOf,
   };
 
   root.GoMomoMap = api;
