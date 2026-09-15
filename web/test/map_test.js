@@ -171,8 +171,91 @@ assert(
   "east walk stays walkable (got " + endKind + ")"
 );
 
+var g = walkGame.map.tutorialGrass;
+function clearCrowd(game) {
+  game.people = [];
+  game.dogs = [];
+  game.peemail = [];
+  game.cars = [];
+}
+function plantOnGrass(game) {
+  game.reset(20260914);
+  clearCrowd(game);
+  game.momo.x = g.cx;
+  game.momo.y = g.cy;
+  game.walker.x = g.cx;
+  game.walker.y = g.cy;
+  game.poop = 0.6;
+  game.didPoop = false;
+}
+
+plantOnGrass(walkGame);
+walkGame.dogs = [{ x: g.cx + 20, y: g.cy, dirX: 0, dirY: 0, kind: "dog", timer: 1 }];
+assert(walkGame.interruptNear() === "dog", "dog 20px away (adjacent sidewalk) is in interrupt range");
+walkGame.updatePace(0.05, false);
+assert(walkGame.poop === 0, "dog interrupt resets poop progress");
+assert(/dog/i.test(walkGame.message), "dog interrupt names the dog in the HUD");
+assert(walkGame.interruptFlash > 0, "dog interrupt flashes");
+
+plantOnGrass(walkGame);
+walkGame.cars = [{ x: g.cx + 50, y: g.cy, axis: "x", dir: 1, w: 16, h: 10, turnLock: 0 }];
+assert(walkGame.interruptNear() === "car", "car ~50px away (street past sidewalk) is in interrupt range");
+walkGame.updatePace(0.05, false);
+assert(walkGame.poop === 0, "car interrupt resets poop progress");
+assert(/car/i.test(walkGame.message), "car interrupt names the car in the HUD");
+assert(walkGame.interruptFlash > 0, "car interrupt flashes");
+
+plantOnGrass(walkGame);
+walkGame.people = [{ x: g.cx + 20, y: g.cy, dirX: 0, dirY: 0, kind: "person", timer: 1 }];
+assert(walkGame.interruptNear() === "person", "person on adjacent sidewalk still interrupts");
+walkGame.updatePace(0.05, false);
+assert(walkGame.poop === 0, "person interrupt still resets poop");
+
+plantOnGrass(walkGame);
+walkGame.peemail = [{ x: g.cx + 20, y: g.cy }];
+assert(walkGame.interruptNear() === "pee-mail", "pee-mail on adjacent sidewalk still interrupts");
+walkGame.updatePace(0.05, false);
+assert(walkGame.poop === 0, "pee-mail interrupt still resets poop");
+
+plantOnGrass(walkGame);
+walkGame.dogs = [{ x: g.cx + 90, y: g.cy, dirX: 0, dirY: 0, kind: "dog", timer: 1 }];
+assert(walkGame.interruptNear() === null, "dog 90px away does not interrupt");
+walkGame.updatePace(0.05, false);
+assert(walkGame.poop > 0.6, "calm grass still fills poop");
+
+plantOnGrass(walkGame);
+var nearest = null;
+var nearestD = 1e9;
+for (var li = 0; li < walkGame.map.lanes.length; li++) {
+  var lane = walkGame.map.lanes[li];
+  var laneD = lane.axis === "y" ? Math.abs(lane.x - g.cx) : Math.abs(lane.y - g.cy);
+  if (laneD < nearestD) {
+    nearestD = laneD;
+    nearest = lane;
+  }
+}
+assert(nearestD > 40 && nearestD < 90, "tutorial grass sits across a sidewalk from a street (got " + nearestD + ")");
+var streetCar =
+  nearest.axis === "y"
+    ? { x: nearest.x, y: g.cy, axis: "y", dir: 1, w: 10, h: 16, turnLock: 99 }
+    : { x: g.cx, y: nearest.y, axis: "x", dir: 1, w: 16, h: 10, turnLock: 99 };
+walkGame.cars = [streetCar];
+assert(walkGame.interruptNear() === "car", "car on the adjacent street interrupts tutorial grass (lane d=" + nearestD + ")");
+walkGame.updatePace(0.05, false);
+assert(walkGame.poop === 0, "adjacent-street car resets poop");
+
+var html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+assert(html.indexOf("▲") === -1 && html.indexOf("▼") === -1, "d-pad markup has no selectable Unicode arrows");
+assert(html.indexOf("▶") === -1 && html.indexOf("◀") === -1, "d-pad markup has no selectable Unicode chevrons");
+assert(!/>A<\/button>/.test(html) && !/>B<\/button>/.test(html), "A/B labels are not button text nodes");
+var css = fs.readFileSync(path.join(__dirname, "..", "css", "style.css"), "utf8");
+assert(css.indexOf('content: "A"') === -1 && css.indexOf("content: 'A'") === -1, "A is not CSS generated text");
+assert(css.indexOf('content: "B"') === -1 && css.indexOf("content: 'B'") === -1, "B is not CSS generated text");
+assert(css.indexOf("▲") === -1 && css.indexOf("▼") === -1, "CSS has no Unicode arrows");
+
 if (fails) {
   console.error(fails + " assertion(s) failed");
   process.exit(1);
 }
-console.log("ok — walk probe + snap camera");
+console.log("ok — walk probe + snap camera + interrupts + chrome markup");
+
