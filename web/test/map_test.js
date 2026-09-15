@@ -248,6 +248,10 @@ var html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 assert(html.indexOf("▲") === -1 && html.indexOf("▼") === -1, "d-pad markup has no selectable Unicode arrows");
 assert(html.indexOf("▶") === -1 && html.indexOf("◀") === -1, "d-pad markup has no selectable Unicode chevrons");
 assert(!/>A<\/button>/.test(html) && !/>B<\/button>/.test(html), "A/B labels are not button text nodes");
+var css = fs.readFileSync(path.join(__dirname, "..", "css", "style.css"), "utf8");
+assert(css.indexOf('content: "A"') === -1 && css.indexOf("content: 'A'") === -1, "A is not CSS generated text");
+assert(css.indexOf('content: "B"') === -1 && css.indexOf("content: 'B'") === -1, "B is not CSS generated text");
+assert(css.indexOf("▲") === -1 && css.indexOf("▼") === -1, "CSS has no Unicode arrows");
 
 if (fails) {
   console.error(fails + " assertion(s) failed");
