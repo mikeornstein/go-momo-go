@@ -244,18 +244,93 @@ assert(walkGame.interruptNear() === "car", "car on the adjacent street interrupt
 walkGame.updatePace(0.05, false);
 assert(walkGame.poop === 0, "adjacent-street car resets poop");
 
+var m1 = Map.generateNeighborhood(20260914, 1);
+var m3 = Map.generateNeighborhood(20260914, 3);
+assert(m1.level === 1 && m3.level === 3, "maps store the requested level");
+assert(m3.spawns.people.length > m1.spawns.people.length, "level 3 has more people (" + m1.spawns.people.length + " -> " + m3.spawns.people.length + ")");
+assert(m3.spawns.dogs.length > m1.spawns.dogs.length, "level 3 has more dogs");
+assert(m3.spawns.peemail.length > m1.spawns.peemail.length, "level 3 has more pee-mail");
+assert(m3.spawns.cars.length > m1.spawns.cars.length, "level 3 has more cars");
+
+var GameApi = context.GoMomoGame;
+assert(GameApi.clockForLevel(1) === 75, "level 1 clock is 75s");
+assert(GameApi.clockForLevel(2) === 67, "level 2 clock is 67s");
+assert(GameApi.clockForLevel(2) < GameApi.clockForLevel(1), "clock shrinks each level");
+assert(GameApi.clockForLevel(20) === GameApi.CLOCK_MIN, "clock floors at CLOCK_MIN");
+
+function tallyActors(game) {
+  return game.people.length + game.dogs.length + game.peemail.length + game.cars.length;
+}
+function fakeInput(restart, fresh) {
+  return {
+    consumeRestart: function () {
+      var v = restart;
+      restart = false;
+      return v;
+    },
+    consumeNewBlock: function () {
+      var v = fresh;
+      fresh = false;
+      return v;
+    },
+    axis: function () {
+      return { x: 0, y: 0 };
+    },
+  };
+}
+
+var prog = new Game(20260914);
+assert(prog.level === 1, "new game starts at level 1");
+assert(prog.clock === GameApi.CLOCK, "level 1 uses the base clock");
+assert(prog.interruptR === GameApi.INTERRUPT_R, "level 1 interrupt radius is the base");
+var n1 = tallyActors(prog);
+prog.state = "won";
+prog.update(0.016, fakeInput(true, false));
+assert(prog.level === 2, "A after a win advances to level 2");
+assert(prog.clock === GameApi.clockForLevel(2), "level 2 clock is shorter");
+assert(prog.clock < GameApi.CLOCK, "winning shortens the clock");
+assert(tallyActors(prog) > n1, "level 2 has more distractions");
+assert(prog.interruptR > GameApi.INTERRUPT_R, "level 2 adds interrupt pressure");
+
+var winB = new Game(20260914);
+winB.state = "won";
+winB.update(0.016, fakeInput(false, true));
+assert(winB.level === 2, "B after a win also advances the level");
+
+var lostA = new Game(20260914);
+lostA.advanceLevel();
+lostA.advanceLevel();
+assert(lostA.level === 3, "advanceLevel stacks");
+lostA.state = "lost";
+lostA.update(0.016, fakeInput(true, false));
+assert(lostA.level === 1, "A after a loss returns to level 1");
+assert(lostA.map.seed === 20260914, "A after a loss returns to the first neighborhood");
+assert(lostA.clock === GameApi.CLOCK, "level 1 clock is restored after a loss");
+
+var lostB = new Game(20260914);
+lostB.advanceLevel();
+lostB.state = "lost";
+var lostSeed = lostB.map.seed;
+lostB.update(0.016, fakeInput(false, true));
+assert(lostB.level === 1, "B after a loss returns to level 1");
+assert(lostB.map.seed === ((lostSeed + 1) >>> 0), "B after a loss starts a new level-1 neighborhood");
+assert(lostB.originSeed === lostB.map.seed, "new level-1 run remembers the fresh origin seed");
+
 var html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+var css = fs.readFileSync(path.join(__dirname, "..", "css", "style.css"), "utf8");
+assert(html.indexOf('class="crank"') === -1 && html.indexOf("crank") === -1, "HTML has no faux crank");
+assert(css.indexOf(".crank") === -1, "CSS has no faux crank");
 assert(html.indexOf("▲") === -1 && html.indexOf("▼") === -1, "d-pad markup has no selectable Unicode arrows");
 assert(html.indexOf("▶") === -1 && html.indexOf("◀") === -1, "d-pad markup has no selectable Unicode chevrons");
 assert(!/>A<\/button>/.test(html) && !/>B<\/button>/.test(html), "A/B labels are not button text nodes");
-var css = fs.readFileSync(path.join(__dirname, "..", "css", "style.css"), "utf8");
 assert(css.indexOf('content: "A"') === -1 && css.indexOf("content: 'A'") === -1, "A is not CSS generated text");
 assert(css.indexOf('content: "B"') === -1 && css.indexOf("content: 'B'") === -1, "B is not CSS generated text");
 assert(css.indexOf("▲") === -1 && css.indexOf("▼") === -1, "CSS has no Unicode arrows");
+assert(css.indexOf("align-items: center") !== -1 && css.indexOf("justify-content: center") !== -1, "A/B buttons flex-center their glyphs");
 
 if (fails) {
   console.error(fails + " assertion(s) failed");
   process.exit(1);
 }
-console.log("ok — walk probe + snap camera + interrupts + chrome markup");
+console.log("ok — walk probe + snap camera + interrupts + chrome markup + levels");
 
