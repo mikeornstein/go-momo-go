@@ -223,6 +223,27 @@ assert(walkGame.interruptNear() === null, "dog 90px away does not interrupt");
 walkGame.updatePace(0.05, false);
 assert(walkGame.poop > 0.6, "calm grass still fills poop");
 
+plantOnGrass(walkGame);
+var nearest = null;
+var nearestD = 1e9;
+for (var li = 0; li < walkGame.map.lanes.length; li++) {
+  var lane = walkGame.map.lanes[li];
+  var laneD = lane.axis === "y" ? Math.abs(lane.x - g.cx) : Math.abs(lane.y - g.cy);
+  if (laneD < nearestD) {
+    nearestD = laneD;
+    nearest = lane;
+  }
+}
+assert(nearestD > 40 && nearestD < 90, "tutorial grass sits across a sidewalk from a street (got " + nearestD + ")");
+var streetCar =
+  nearest.axis === "y"
+    ? { x: nearest.x, y: g.cy, axis: "y", dir: 1, w: 10, h: 16, turnLock: 99 }
+    : { x: g.cx, y: nearest.y, axis: "x", dir: 1, w: 16, h: 10, turnLock: 99 };
+walkGame.cars = [streetCar];
+assert(walkGame.interruptNear() === "car", "car on the adjacent street interrupts tutorial grass (lane d=" + nearestD + ")");
+walkGame.updatePace(0.05, false);
+assert(walkGame.poop === 0, "adjacent-street car resets poop");
+
 var html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 assert(html.indexOf("▲") === -1 && html.indexOf("▼") === -1, "d-pad markup has no selectable Unicode arrows");
 assert(html.indexOf("▶") === -1 && html.indexOf("◀") === -1, "d-pad markup has no selectable Unicode chevrons");

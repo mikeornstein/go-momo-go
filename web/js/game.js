@@ -19,11 +19,11 @@
   var CLOCK = 75;
   var PACE_TIME = 2.35;
   var LEASH = 18;
-  // Sidewalk is 20px; lot-edge grass center sits ~20px from a sidewalk NPC
-  // and ~50px from a car on asphalt. Old 16px radii never reached dogs/cars.
+  // Sidewalk is 20px. Lot-edge grass is ~20px from a sidewalk NPC and ~50px
+  // from asphalt. Tutorial grass sits one fence cell in (~40px / ~70px).
   var INTERRUPT_R = 44;
   var PEEMAIL_R = 36;
-  var CAR_SPOOK_R = 64;
+  var CAR_SPOOK_R = 80;
   var STUN_TIME = 0.35;
 
   function clamp(v, a, b) {
