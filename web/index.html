@@ -10,11 +10,7 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-    <h1>GO MOMO GO</h1>
-    <p class="lede">
-      Cute arcade morning walk. 4×8 cell blocks, a couple of blocks on screen, camera snaps at the edge.
-      Sidewalks only, cars on streets, poop on grass, home before work. Generated from rules — no hand-authored map.
-    </p>
+    <h1 class="visually-hidden">Go Momo Go</h1>
 
     <div class="device">
       <div class="crank" aria-hidden="true"></div>
@@ -23,26 +19,17 @@
       </div>
       <div class="controls">
         <div class="dpad" aria-label="D-pad">
-          <button type="button" data-dir="u">▲</button>
-          <button type="button" data-dir="l">◀</button>
-          <button type="button" data-dir="r">▶</button>
-          <button type="button" data-dir="d">▼</button>
+          <button type="button" data-dir="u" aria-label="Up">▲</button>
+          <button type="button" data-dir="l" aria-label="Left">◀</button>
+          <button type="button" data-dir="r" aria-label="Right">▶</button>
+          <button type="button" data-dir="d" aria-label="Down">▼</button>
         </div>
         <div class="faces">
-          <button type="button" class="face" data-action="restart" title="Restart this block">A</button>
-          <button type="button" class="face" data-action="new-block" title="New neighborhood">B</button>
+          <button type="button" class="face" data-action="restart" aria-label="Restart this block" title="Restart this block">A</button>
+          <button type="button" class="face" data-action="new-block" aria-label="New neighborhood" title="New neighborhood">B</button>
         </div>
       </div>
     </div>
-
-    <p class="meta">
-      <kbd>WASD</kbd> / arrows walk the person. Momo follows on a short leash.
-      Stand still on grass to pace. People, dogs, pee-mail, or a close car reset the squat.
-      Win: poop, then home. Lose: clock, or home empty after you have left.
-      <kbd>A</kbd>/<kbd>Enter</kbd> restart this block.
-      <kbd>B</kbd>/<kbd>N</kbd> new neighborhood.
-    </p>
-    <p class="seed">seed <span id="seed-label">—</span></p>
 
     <script src="js/rng.js"></script>
     <script src="js/map.js"></script>
