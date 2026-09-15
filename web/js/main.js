@@ -10,6 +10,7 @@
   var game = new GoMomoGame.Game(seed);
   var input = new GoMomoInput.Input(document.querySelector(".device"));
   var seedEl = document.getElementById("seed-label");
+  window.GoMomo = { game: game, input: input };
 
   function syncSeed() {
     if (seedEl) seedEl.textContent = String(game.map.seed);
