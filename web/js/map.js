@@ -253,7 +253,7 @@
     })[0];
     for (var i = 0; i < lots.length; i++) {
       var lot = lots[i];
-      var rim = 6;
+      var rim = 7;
       var edges = [
         { x0: lot.x0, y0: lot.y0, x1: lot.x0 + rim, y1: lot.y1 },
         { x0: lot.x1 - rim, y0: lot.y0, x1: lot.x1, y1: lot.y1 },
@@ -262,10 +262,10 @@
       ];
       for (var e = 0; e < edges.length; e++) {
         var edge = edges[e];
-        var tries = lot.isHome ? 3 : 1 + Math.floor(lot.density * 2);
+        var tries = lot.isHome ? 4 : 1 + Math.floor(lot.density * 2);
         for (var t = 0; t < tries; t++) {
-          var gw = rng.int(8, 14);
-          var gh = rng.int(5, 8);
+          var gw = rng.int(10, 16);
+          var gh = rng.int(6, 9);
           var gx = rng.float(edge.x0, Math.max(edge.x0, edge.x1 - gw));
           var gy = rng.float(edge.y0, Math.max(edge.y0, edge.y1 - gh));
           if (lot.isHome && gx < home.path.x1 && gx + gw > home.path.x0 && gy + gh > home.path.y0) {

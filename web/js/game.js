@@ -343,7 +343,10 @@
   Game.prototype.updateOutcome = function () {
     if (this.state !== "play") return;
     var kind = this.cell(this.walker.x, this.walker.y);
-    if (!this.hasLeftHome && kind !== CELL.HOME) this.hasLeftHome = true;
+    if (!this.hasLeftHome) {
+      var fromDoor = hypot(this.walker.x - this.map.home.stoop.x, this.walker.y - this.map.home.stoop.y);
+      if (fromDoor > 24 || kind === CELL.GRASS || kind === CELL.CROSSWALK) this.hasLeftHome = true;
+    }
 
     if (this.clock <= 0) {
       this.state = "lost";
@@ -483,6 +486,10 @@
     for (i = 0; i < this.map.grass.length; i++) {
       var g = this.map.grass[i];
       ctx.fillRect(g.x, g.y, g.w, g.h);
+      this.ink(ctx);
+      ctx.fillRect(g.x, g.y, g.w, 1);
+      ctx.fillRect(g.x, g.y + g.h - 1, g.w, 1);
+      ctx.fillStyle = pats.grass;
     }
 
     ctx.fillStyle = pats.home;
@@ -563,6 +570,9 @@
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    ctx.fillStyle = BG;
+    ctx.fillRect(this.walker.x - 3, this.walker.y - 9, 7, 11);
+    this.ink(ctx);
     ctx.fillRect(this.walker.x - 2, this.walker.y - 8, 5, 9);
     ctx.fillStyle = BG;
     ctx.fillRect(this.walker.x - 1, this.walker.y - 7, 2, 2);
@@ -570,13 +580,16 @@
 
     var mx = this.momo.x;
     var my = this.momo.y;
-    ctx.fillRect(mx - 3, my - 4, 7, 6);
-    ctx.fillRect(mx - 4, my - 6, 3, 3);
-    ctx.fillRect(mx + 2, my - 6, 3, 3);
+    ctx.fillStyle = BG;
+    ctx.fillRect(mx - 5, my - 7, 11, 10);
+    this.ink(ctx);
+    ctx.fillRect(mx - 4, my - 5, 8, 7);
+    ctx.fillRect(mx - 5, my - 7, 4, 4);
+    ctx.fillRect(mx + 2, my - 7, 4, 4);
     ctx.fillStyle = BG;
     ctx.fillRect(mx - 1, my - 2, 2, 2);
     this.ink(ctx);
-    if (this.interruptFlash > 0) ctx.fillRect(mx - 5, my - 8, 2, 2);
+    if (this.interruptFlash > 0) ctx.fillRect(mx - 6, my - 9, 3, 3);
   };
 
   Game.prototype.drawHud = function (ctx) {
@@ -599,15 +612,15 @@
 
     if (this.state !== "play") {
       ctx.fillStyle = BG;
-      ctx.fillRect(70, 78, 260, 84);
+      ctx.fillRect(48, 70, 304, 100);
       this.ink(ctx);
-      ctx.fillRect(72, 80, 256, 80);
+      ctx.fillRect(50, 72, 300, 96);
       ctx.fillStyle = BG;
-      ctx.font = "16px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(this.endCopy, 84, 100);
+      ctx.font = "13px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText(this.endCopy, 62, 90);
       ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(this.state === "won" ? "Enter / A — same block" : "Enter / A — try this block", 84, 128);
-      ctx.fillText("N — new neighborhood", 84, 142);
+      ctx.fillText(this.state === "won" ? "Enter / A — same block" : "Enter / A — try this block", 62, 118);
+      ctx.fillText("N / B — new neighborhood", 62, 134);
     }
   };
 

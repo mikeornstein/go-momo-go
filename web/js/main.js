@@ -30,6 +30,11 @@
     if (dt > 0.05) dt = 0.05;
     if (!last) dt = 1 / 60;
     last = now;
+    if (typeof document !== "undefined" && document.hidden) {
+      game.draw(ctx);
+      requestAnimationFrame(frame);
+      return;
+    }
     var prevSeed = game.map.seed;
     game.update(dt, input);
     if (game.map.seed !== prevSeed) syncSeed();
