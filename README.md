@@ -8,6 +8,8 @@ Development environment is Visual Studio Code with automated builds, autocomplet
 
 **Status:** Walk, leash, go, and pee-mail are in. D-pad walks the person; the crank is the leash; Momo picks the spot. He plants for a sniff or a go — slack holds you, not him. Encounters are next.
 
+A separate **mobile-web procedural arcade prototype** (plan of record 2026-09-14) lives in [`web/`](web/). It does not replace the Playdate Lua game.
+
 This repo includes a copy of [playdate-luacats](https://github.com/notpeter/playdate-luacats) by notpeter, licensed under the MIT license. Template video: https://youtu.be/UZ04rk3lLqU
 
 # Setup
@@ -95,6 +97,7 @@ Game metadata lives in `source/pdxinfo`. See [System and Game Metadata](https://
 - `docs` - Game design and other project docs
   - `game-design.md` - Concept, mechanics, story, assets, v1 build order
   - `art-direction.md` - 90s visual bible, Imagine prompts, concept stills
+- `web` - Mobile web procedural arcade prototype (400×240, no build step). See [web/README.md](web/README.md)
 - `source` - Game code and assets
   - `main.lua` - Entry point; boots the walk scene
   - `walk/walk_scene.lua` - Sidewalk commute, clock, stub end cards
