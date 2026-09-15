@@ -50,6 +50,17 @@
 
   Input.prototype.bindPad = function (rootEl) {
     var self = this;
+    function killSelect(ev) {
+      ev.preventDefault();
+    }
+    rootEl.addEventListener("selectstart", killSelect);
+    rootEl.addEventListener("contextmenu", killSelect);
+    rootEl.addEventListener("dragstart", killSelect);
+    var canvas = rootEl.querySelector("canvas");
+    if (canvas) {
+      canvas.addEventListener("selectstart", killSelect);
+      canvas.addEventListener("contextmenu", killSelect);
+    }
     var buttons = rootEl.querySelectorAll("[data-dir]");
     for (var i = 0; i < buttons.length; i++) {
       (function (btn) {
@@ -68,6 +79,8 @@
         btn.addEventListener("pointerup", up);
         btn.addEventListener("pointerleave", up);
         btn.addEventListener("pointercancel", up);
+        btn.addEventListener("selectstart", killSelect);
+        btn.addEventListener("contextmenu", killSelect);
       })(buttons[i]);
     }
     var restart = rootEl.querySelector("[data-action=restart]");
@@ -76,6 +89,8 @@
         e.preventDefault();
         self.restartQueued = true;
       });
+      restart.addEventListener("selectstart", killSelect);
+      restart.addEventListener("contextmenu", killSelect);
     }
     var fresh = rootEl.querySelector("[data-action=new-block]");
     if (fresh) {
@@ -83,6 +98,8 @@
         e.preventDefault();
         self.newBlockQueued = true;
       });
+      fresh.addEventListener("selectstart", killSelect);
+      fresh.addEventListener("contextmenu", killSelect);
     }
   };
 

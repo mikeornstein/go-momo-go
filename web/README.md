@@ -34,7 +34,9 @@ Optional query: `?seed=20260914` (default) or `?debug=1` to outline the 4×8 lot
 **Win:** poop on grass, then reach the home stoop before the clock.  
 **Lose:** clock hits zero, or you step back onto the stoop after leaving without having pooped.
 
-Interrupts (person, dog, pee-mail, close car) reset poop progress. Streets are for cars; you only cross on the zebra stripes. Farther blocks are quieter and a longer walk home.
+Interrupts (person, dog, pee-mail, close car) **reset** poop progress — including a dog on the adjacent sidewalk or a car on the street past that sidewalk. Streets are for cars; you only cross on the zebra stripes. Farther blocks are quieter and a longer walk home.
+
+On-screen d-pad / A·B glyphs are CSS shapes or `::before` content (no Unicode text nodes) so Mobile Safari cannot select them.
 
 ## Rules encoded (not a tile map)
 
