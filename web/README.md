@@ -39,7 +39,7 @@ Optional query: `?seed=20260914` (default) or `?debug=1` to outline the 4×8 lot
 
 People walk loops from their own houses; dogs are leashed to those walkers (no lone dogs). **Mimis** (grandmas, no dog) use the same loop and the same distract class. Nearby distractions **slow your walk** even when you are not pacing. Dogs drop pee-mail along the route. Interrupts (person, mimi, dog, pee-mail, close car) **reset** poop progress and **flash the source entity**. Streets are for cars; you only cross on the zebra stripes. Farther blocks are quieter and a longer walk home.
 
-A 1-bit splash waits for A/B (or the chrome start/pause control) before the clock starts. Art card `splash.png` supplies the **scene**; title **Go Momo Go** / **Poop. Then home.** is sharp bitmap type after dither. Fallback doodle is marked `tmp splash` until the PNG loads. Swap the sheet in `web/assets/splash.png`.
+A 1-bit splash waits for A/B (or the chrome start/pause control) before the clock starts. Art card `splash.png` is the full 400×240 title card (**GO MOMO GO** / **Poop. Then home.**, big Momo + walker). Start hints use the post-dither bitmap font. Fallback doodle is marked `tmp splash` if the PNG 404s.
 
 On-screen d-pad / A·B glyphs are CSS shapes or `::before` content (no Unicode text nodes) so Mobile Safari cannot select them.
 

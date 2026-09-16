@@ -390,6 +390,12 @@ var assetsDir = path.join(__dirname, "..", "assets");
 ].forEach(function (name) {
   assert(fs.existsSync(path.join(assetsDir, name)), "asset " + name + " is in web/assets");
 });
+var splashBuf = fs.readFileSync(path.join(assetsDir, "splash.png"));
+function u32be(buf, o) {
+  return ((buf[o] << 24) | (buf[o + 1] << 16) | (buf[o + 2] << 8) | buf[o + 3]) >>> 0;
+}
+assert(splashBuf[0] === 0x89 && splashBuf.toString("ascii", 1, 4) === "PNG", "splash.png is a PNG");
+assert(u32be(splashBuf, 16) === 400 && u32be(splashBuf, 20) === 240, "splash.png is 400x240");
 var artSrc = fs.readFileSync(path.join(jsDir, "art.js"), "utf8");
 assert(artSrc.indexOf("house_home_zhuz") !== -1, "art prefers house_home_zhuz for the player home");
 assert(artSrc.indexOf("house_home_2x3") !== -1, "art keeps house_home_2x3 as fallback");
@@ -573,6 +579,8 @@ drawSrc = drawSrc.slice(0, drawSrc.indexOf("root.GoMomoGame"));
 assert(drawSrc.indexOf("this.drawHud") === -1, "HUD is not painted into the pre-dither world buffer");
 assert(drawSrc.indexOf("ditherImageData") !== -1 && drawSrc.indexOf("this.drawUi") !== -1, "draw still dithers then overlays UI");
 assert(drawSrc.indexOf("this.drawUi") > drawSrc.indexOf("ditherImageData"), "drawUi runs after Bayer dither");
+assert(gameSrc.indexOf("if (this._splashFallback)") !== -1, "art splash keeps baked title; engine title is fallback-only");
+assert(gameSrc.indexOf("COPY.splashStart") !== -1, "splash still overlays A/B start hint after dither");
 
 function assertGlyphs(s, msg) {
   var miss = Font.missing(s);

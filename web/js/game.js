@@ -35,8 +35,8 @@
     resume: "A  Resume",
     restartDay: "B  Restart at day 1",
   };
-  // Lime band that covers baked splash.png title so bitmap type can sit on top.
-  // Art Director sheets drop in as web/assets/splash.png; raise/lower if the scene moves.
+  // Lime band for the procedural fallback splash only. Art Director splash.png
+  // is blitted full-canvas (title already in the bitmap).
   var SPLASH_TITLE_BAND = 102;
 
   var CAR_W_X = 20;
@@ -1331,14 +1331,14 @@
   };
 
   Game.prototype.drawSplashUi = function (ctx) {
-    ctx.fillStyle = BG;
-    ctx.fillRect(0, 0, VIEW_W, SPLASH_TITLE_BAND);
-    Font.draw(ctx, COPY.splashTitle, 200, 24, { scale: 2, color: INK, align: "center" });
-    var tw = Font.measure(COPY.splashTitle, 2).w;
-    this.ink(ctx);
-    ctx.fillRect(Math.round(200 - tw / 2), 24 + Font.H * 2 + 3, tw, 1);
-    Font.draw(ctx, COPY.splashSub, 200, 46, { scale: 1, color: INK, align: "center" });
     if (this._splashFallback) {
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, VIEW_W, SPLASH_TITLE_BAND);
+      Font.draw(ctx, COPY.splashTitle, 200, 24, { scale: 2, color: INK, align: "center" });
+      var tw = Font.measure(COPY.splashTitle, 2).w;
+      this.ink(ctx);
+      ctx.fillRect(Math.round(200 - tw / 2), 24 + Font.H * 2 + 3, tw, 1);
+      Font.draw(ctx, COPY.splashSub, 200, 46, { scale: 1, color: INK, align: "center" });
       Font.draw(ctx, "tmp splash", 200, 62, { color: INK, align: "center" });
     }
     Font.draw(ctx, COPY.splashStart, 8, 222, { color: INK, bg: BG, pad: 2 });
