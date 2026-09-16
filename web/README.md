@@ -4,7 +4,7 @@ Playable **procedural** arcade loop in the browser. Game pixels are **400×240**
 
 Plan of record: sidewalks both sides, cars on streets, crosswalks at intersections, home at the center, busy-near / quiet-far, grass on yard edges. **Difficulty rises each win** (more sidewalk traffic / cars / pee-mail and a shorter clock). **A loss returns to level 1** / the first neighborhood.
 
-Houses and fences are procedural stamps (`web/js/art.js`). Optional sheets drop in at `web/assets/house.png`, `web/assets/fence.png`, and `web/assets/car.png` — see `web/assets/README.md`.
+Houses, fences, and cars blit Game Art Director stamps from [`web/assets/`](assets/) (`house_2x2*.png`, `house_home_2x3.png`, `fence_*.png`, `car_h_20x12.png` / `car_v_12x20.png`). Procedural drawing is a 404 fallback. See `web/assets/README.md`.
 
 ## Open
 

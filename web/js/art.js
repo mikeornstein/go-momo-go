@@ -1,8 +1,5 @@
-// House / fence / car stamps for the 20px cell grid.
-// Procedural 1-bit-friendly greys by default. Drop sheets in web/assets/ to replace:
-//   assets/house.png  — horizontal 40×40 frames (optional second row 40×60 for home)
-//   assets/fence.png  — 20×20 (or a horizontal strip of 20×20 frames)
-//   assets/car.png    — 16×10 frames (col 0 = east-west, col 1 = north-south)
+// Playtest #3 art stamps. Prefer Game Art Director tiles in web/assets/;
+// procedural greys remain a fallback until images load (or if a file 404s).
 (function (root) {
   "use strict";
 
@@ -14,45 +11,119 @@
   var TRIM = "#4a381c";
   var PANE = "#c4d070";
   var CELL = 20;
+  var DIR = "assets/";
+
+  var HOUSE_2X2 = ["house_2x2", "house_2x2_b", "house_face_2x2", "house_face_2x2_b"];
+  var TILE_NAMES = [
+    "house_2x2",
+    "house_2x2_b",
+    "house_face_2x2",
+    "house_face_2x2_b",
+    "house_face_2x3",
+    "house_home_2x3",
+    "fence_h",
+    "fence_v",
+    "fence_corner_nw",
+    "fence_corner_ne",
+    "fence_corner_sw",
+    "fence_corner_se",
+    "fence_gate",
+    "car_h_20x12",
+    "car_v_12x20",
+  ];
 
   function Art() {
-    this.sheets = { house: null, fence: null, car: null };
+    this.tiles = {};
+    this.ready = false;
     this._load();
   }
 
   Art.prototype._load = function () {
     if (typeof Image === "undefined") return;
     var self = this;
+    var left = TILE_NAMES.length;
     function grab(name) {
       var img = new Image();
       img.onload = function () {
-        self.sheets[name] = img;
+        self.tiles[name] = img;
+        left--;
+        if (left <= 0) self.ready = true;
       };
       img.onerror = function () {
-        /* missing sheet is the procedural path */
+        left--;
+        if (left <= 0) self.ready = true;
       };
-      img.src = "assets/" + name + ".png";
+      img.src = DIR + name + ".png";
     }
-    grab("house");
-    grab("fence");
-    grab("car");
+    for (var i = 0; i < TILE_NAMES.length; i++) grab(TILE_NAMES[i]);
+  };
+
+  Art.prototype.tile = function (name) {
+    var img = this.tiles[name];
+    return img && img.width ? img : null;
+  };
+
+  Art.prototype.blit = function (ctx, img, dx, dy, dw, dh, flipX, flipY) {
+    if (!img) return false;
+    ctx.imageSmoothingEnabled = false;
+    if (flipX || flipY) {
+      ctx.save();
+      ctx.translate(dx + (flipX ? dw : 0), dy + (flipY ? dh : 0));
+      ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+      ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, dw, dh);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
+    }
+    return true;
   };
 
   Art.prototype.drawHouse = function (ctx, b) {
-    var sheet = this.sheets.house;
-    if (sheet && sheet.width) {
-      var frameW = 40;
-      var frameH = b.home ? 60 : 40;
-      if (sheet.height < frameH) frameH = sheet.height;
-      var cols = Math.max(1, Math.floor(sheet.width / frameW));
-      var col = (b.variant || 0) % cols;
-      var rowY = 0;
-      if (b.home && sheet.height >= 100) rowY = 40;
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(sheet, col * frameW, rowY, frameW, Math.min(frameH, sheet.height - rowY), b.x, b.y, b.w, b.h);
-      return;
+    var img;
+    var flipY = b.face === "n";
+    if (b.home) {
+      img = this.tile("house_home_2x3");
+      if (this.blit(ctx, img, b.x, b.y, b.w, b.h, false, false)) return;
+    } else {
+      var name = HOUSE_2X2[(b.variant || 0) % HOUSE_2X2.length];
+      img = this.tile(name);
+      if (this.blit(ctx, img, b.x, b.y, b.w, b.h, false, flipY)) return;
     }
     this.drawHouseProcedural(ctx, b);
+  };
+
+  Art.prototype.fenceStamp = function (n) {
+    var N = !!(n && n.N);
+    var S = !!(n && n.S);
+    var E = !!(n && n.E);
+    var W = !!(n && n.W);
+    if (E && S && !N && !W) return "fence_corner_nw";
+    if (W && S && !N && !E) return "fence_corner_ne";
+    if (E && N && !S && !W) return "fence_corner_sw";
+    if (W && N && !S && !E) return "fence_corner_se";
+    if (E && W && !N && !S) return "fence_h";
+    if (N && S && !E && !W) return "fence_v";
+    if ((E || W) && !N && !S) return "fence_h";
+    if ((N || S) && !E && !W) return "fence_v";
+    if (N && S) return "fence_v";
+    if (E && W) return "fence_h";
+    if (E || W) return "fence_h";
+    return "fence_v";
+  };
+
+  Art.prototype.drawFence = function (ctx, x, y, size, n) {
+    var img = this.tile(this.fenceStamp(n));
+    if (this.blit(ctx, img, x, y, size, size, false, false)) return;
+    this.drawFenceProcedural(ctx, x, y, size, n);
+  };
+
+  Art.prototype.tryBlitCar = function (ctx, c, x, y) {
+    var horiz = c.axis !== "y";
+    var img = this.tile(horiz ? "car_h_20x12" : "car_v_12x20");
+    if (!img) return false;
+    var flipX = horiz && c.dir < 0;
+    var flipY = !horiz && c.dir < 0;
+    return this.blit(ctx, img, x, y, c.w, c.h, flipX, flipY);
   };
 
   Art.prototype.drawHouseProcedural = function (ctx, b) {
@@ -125,7 +196,7 @@
     ctx.fillRect(x + w - 5, y + 1, 1, roofH - 2);
   };
 
-  Art.prototype.drawWindows = function (ctx, x, y, w, h, roofH, face, variant, home, doorY, doorH) {
+  Art.prototype.drawWindows = function (ctx, x, y, w, h, roofH, face, variant, home) {
     var wy = face === "n" ? y + h - 16 : y + roofH + (home ? 6 : 3);
     function pane(px, py, pw, ph) {
       ctx.fillStyle = INK;
@@ -162,19 +233,6 @@
     }
   };
 
-  Art.prototype.drawFence = function (ctx, x, y, size, n) {
-    var sheet = this.sheets.fence;
-    if (sheet && sheet.width) {
-      var fw = 20;
-      var cols = Math.max(1, Math.floor(sheet.width / fw));
-      var col = ((n.E ? 1 : 0) + (n.S ? 2 : 0)) % cols;
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(sheet, col * fw, 0, Math.min(fw, sheet.width), Math.min(CELL, sheet.height), x, y, size, size);
-      return;
-    }
-    this.drawFenceProcedural(ctx, x, y, size, n);
-  };
-
   Art.prototype.drawFenceProcedural = function (ctx, x, y, size, n) {
     var east = n && n.E;
     var west = n && n.W;
@@ -204,35 +262,13 @@
     ctx.fillRect(x + size - 4, y + size - 7, 3, 3);
   };
 
-  Art.prototype.tryBlitCar = function (ctx, c, x, y) {
-    var sheet = this.sheets.car;
-    if (!sheet || !sheet.width) return false;
-    var frameW = 16;
-    var frameH = 10;
-    var col = c.axis === "y" ? 1 : 0;
-    if (sheet.width < frameW) return false;
-    if (col * frameW >= sheet.width) col = 0;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(
-      sheet,
-      col * frameW,
-      0,
-      Math.min(frameW, sheet.width - col * frameW),
-      Math.min(frameH, sheet.height),
-      x,
-      y,
-      c.w,
-      c.h
-    );
-    return true;
-  };
-
   var api = {
     Art: Art,
-    DIR: "assets/",
-    SHEET_HOUSE: "assets/house.png",
-    SHEET_FENCE: "assets/fence.png",
-    SHEET_CAR: "assets/car.png",
+    DIR: DIR,
+    TILE_NAMES: TILE_NAMES,
+    SHEET_HOUSES: "assets/houses.png",
+    SHEET_FENCES: "assets/fences.png",
+    SHEET_CARS: "assets/cars.png",
     CELL: CELL,
   };
 

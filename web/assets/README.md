@@ -1,15 +1,18 @@
-# Art sheets (optional)
+# Art assets (playtest #3)
 
-The arcade draws **procedural** house, fence, and car stamps, then Bayer-dithers the 400×240 LCD onto lime `#c9d63a` + ink `#2a1c12`.
+Game Art Director tiles for the 20px cell grid. The arcade **prefers these stamps**; procedural drawing in `web/js/art.js` is only a fallback if a PNG 404s.
 
-Game Art Director sheets can replace those stamps without touching the map generator. Drop files in this folder:
+Final LCD pixels are Bayer-dithered to lime `#c9d63a` + ink `#2a1c12`. Sprites may use hard alpha. Do **not** blit `preview-on-road.png` into the game (that proof uses `#0e0c0a`).
 
-| File | Layout |
+## Drop new sheets here
+
+| File | Use |
 | --- | --- |
-| `house.png` | Horizontal strip of **40×40** frames. `variant` picks the column. If the image is at least **100px** tall, row 0 is neighborhood houses and row 1 (y=40) is the **40×60** home. |
-| `fence.png` | **20×20** (or a horizontal strip of 20×20). Missing file → procedural posts/rails. |
-| `car.png` | **16×10** frames. Column 0 = east-west car, column 1 = north-south. Missing file → procedural lime body + ink outline. |
+| `house_2x2.png` / `house_2x2_b.png` / `house_face_2x2.png` / `house_face_2x2_b.png` | Typical 40×40 lots (`variant` picks). North-facing lots flip Y so the door faces the north street. |
+| `house_home_2x3.png` | Home building, 40×60, door south. |
+| `house_face_3x2*.png` / `house_face_3x3*.png` / `house_home_3x3.png` | Denser 3×2 / 3×3 variants on disk for later layout; not blitted until lots grow. |
+| `fence_h.png` / `fence_v.png` / `fence_corner_*.png` / `fence_gate.png` | 20×20 perimeter autotile. |
+| `car_h_20x12.png` / `car_v_12x20.png` | Preferred cars (lime body, ink cabin). Hitbox matches. |
+| `houses.png` / `fences.png` / `cars.png` | Labeled atlases (also `sheet-*.png`). Loaded stamps are the loose tiles. |
 
-`web/js/art.js` loads `assets/house.png`, `assets/fence.png`, and `assets/car.png`. A 404 is expected until sheets land; the procedural path stays playable.
-
-Sheets should already be 1-bit (or greyscale that dithers onto the Playdate palette). The LCD pass will quantize any leftover greys.
+Replace a PNG in this folder and reload. No map generator change required for 2×2 houses / 2×3 home / 20×20 fences.

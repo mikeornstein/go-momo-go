@@ -289,6 +289,13 @@ function fakeInput(restart, fresh) {
 var prog = new Game(20260914);
 assert(prog.level === 1, "new game starts at level 1");
 assert(prog.clock === GameApi.CLOCK, "level 1 uses the base clock");
+var sampleCar = prog.cars[0];
+assert(sampleCar, "level 1 has cars");
+assert(
+  (sampleCar.axis === "x" && sampleCar.w === 20 && sampleCar.h === 12) ||
+    (sampleCar.axis === "y" && sampleCar.w === 12 && sampleCar.h === 20),
+  "cars use 20x12 / 12x20 art hitboxes (got " + sampleCar.w + "x" + sampleCar.h + " axis " + sampleCar.axis + ")"
+);
 assert(prog.interruptR === GameApi.INTERRUPT_R, "level 1 interrupt radius is the base");
 var n1 = tallyActors(prog);
 prog.state = "won";
@@ -337,10 +344,33 @@ assert(css.indexOf("align-items: center") !== -1 && css.indexOf("justify-content
 assert(html.indexOf("js/dither.js") !== -1, "index loads Bayer dither");
 assert(html.indexOf("js/art.js") !== -1, "index loads house/fence art stamps");
 assert(fs.existsSync(path.join(__dirname, "..", "assets", "README.md")), "art sheet hook is documented under web/assets");
+var assetsDir = path.join(__dirname, "..", "assets");
+[
+  "house_2x2.png",
+  "house_2x2_b.png",
+  "house_face_2x2.png",
+  "house_home_2x3.png",
+  "fence_h.png",
+  "fence_v.png",
+  "fence_corner_nw.png",
+  "fence_gate.png",
+  "car_h_20x12.png",
+  "car_v_12x20.png",
+  "houses.png",
+  "fences.png",
+  "cars.png",
+].forEach(function (name) {
+  assert(fs.existsSync(path.join(assetsDir, name)), "asset " + name + " is in web/assets");
+});
 var artSrc = fs.readFileSync(path.join(jsDir, "art.js"), "utf8");
-assert(artSrc.indexOf("assets/house.png") !== -1, "house sheet path is web/assets/house.png");
-assert(artSrc.indexOf("assets/fence.png") !== -1, "fence sheet path is web/assets/fence.png");
-assert(artSrc.indexOf("assets/car.png") !== -1, "car sheet path is web/assets/car.png");
+assert(artSrc.indexOf("house_home_2x3") !== -1, "art blits house_home_2x3 for home");
+assert(artSrc.indexOf("car_h_20x12") !== -1, "art prefers car_h_20x12");
+assert(artSrc.indexOf("fence_corner_nw") !== -1, "art autotiles fence corners");
+var ArtApi = context.GoMomoArt;
+var stampArt = new ArtApi.Art();
+assert(stampArt.fenceStamp({ E: true, S: true, N: false, W: false }) === "fence_corner_nw", "NW lot corner uses fence_corner_nw");
+assert(stampArt.fenceStamp({ E: true, W: true, N: false, S: false }) === "fence_h", "east-west fence uses fence_h");
+assert(typeof stampArt.drawHouse === "function" && typeof stampArt.tryBlitCar === "function", "art API can blit houses and cars");
 
 var Dither = context.GoMomoDither;
 assert(Dither.BG === "#c9d63a" && Dither.INK === "#2a1c12", "Playdate palette constants");

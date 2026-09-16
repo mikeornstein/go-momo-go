@@ -29,6 +29,10 @@
     house: "Home before poop. Accident inside.",
   };
 
+  var CAR_W_X = 20;
+  var CAR_H_X = 12;
+  var CAR_W_Y = 12;
+  var CAR_H_Y = 20;
   var WALK_SPEED = 60;
   var CAR_SPEED = 36;
   var NPC_SPEED = 18;
@@ -95,8 +99,8 @@
         y: c.y,
         axis: c.axis,
         dir: c.dir,
-        w: c.axis === "x" ? 16 : 10,
-        h: c.axis === "x" ? 10 : 16,
+        w: c.axis === "x" ? CAR_W_X : CAR_W_Y,
+        h: c.axis === "x" ? CAR_H_X : CAR_H_Y,
         turnLock: 0,
       };
     });
@@ -285,8 +289,8 @@
         }
         car.dir = Math.random() < 0.5 ? 1 : -1;
         car.turnLock = 1.1;
-        car.w = car.axis === "x" ? 16 : 10;
-        car.h = car.axis === "x" ? 10 : 16;
+        car.w = car.axis === "x" ? CAR_W_X : CAR_W_Y;
+        car.h = car.axis === "x" ? CAR_H_X : CAR_H_Y;
       }
       var speed = CAR_SPEED * dt * car.dir;
       if (car.axis === "x") car.x += speed;
@@ -1062,6 +1066,10 @@
     INTERRUPT_R: INTERRUPT_R,
     PEEMAIL_R: PEEMAIL_R,
     CAR_SPOOK_R: CAR_SPOOK_R,
+    CAR_W_X: CAR_W_X,
+    CAR_H_X: CAR_H_X,
+    CAR_W_Y: CAR_W_Y,
+    CAR_H_Y: CAR_H_Y,
   };
   if (typeof module !== "undefined" && module.exports) {
     module.exports = root.GoMomoGame;
