@@ -268,6 +268,8 @@
       w: CELL * 2,
       h: CELL * 2,
       roof: rng.chance(0.75),
+      variant: rng.int(0, 3),
+      face: face,
     });
   }
 
@@ -312,6 +314,8 @@
       h: CELL * 3,
       roof: true,
       home: true,
+      variant: 0,
+      face: "s",
     });
     return {
       building: { x: px(origin.c + 1), y: px(origin.r + 2), w: CELL * 2, h: CELL * 3 },

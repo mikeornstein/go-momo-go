@@ -22,6 +22,8 @@ function load(name) {
 
 load("rng.js");
 load("map.js");
+load("dither.js");
+load("art.js");
 
 var Map = context.GoMomoMap;
 var CELL = Map.CELL;
@@ -191,19 +193,24 @@ function plantOnGrass(game) {
 
 plantOnGrass(walkGame);
 walkGame.dogs = [{ x: g.cx + 20, y: g.cy, dirX: 0, dirY: 0, kind: "dog", timer: 1 }];
+var dogEnt = walkGame.dogs[0];
 assert(walkGame.interruptNear() === "dog", "dog 20px away (adjacent sidewalk) is in interrupt range");
 walkGame.updatePace(0.05, false);
 assert(walkGame.poop === 0, "dog interrupt resets poop progress");
 assert(/dog/i.test(walkGame.message), "dog interrupt names the dog in the HUD");
 assert(walkGame.interruptFlash > 0, "dog interrupt flashes");
+assert(walkGame.interruptKind === "dog", "dog interrupt records kind");
+assert(walkGame.interruptTarget === dogEnt, "attention flash targets the dog, not Momo");
 
 plantOnGrass(walkGame);
 walkGame.cars = [{ x: g.cx + 50, y: g.cy, axis: "x", dir: 1, w: 16, h: 10, turnLock: 0 }];
+var carEnt = walkGame.cars[0];
 assert(walkGame.interruptNear() === "car", "car ~50px away (street past sidewalk) is in interrupt range");
 walkGame.updatePace(0.05, false);
 assert(walkGame.poop === 0, "car interrupt resets poop progress");
 assert(/car/i.test(walkGame.message), "car interrupt names the car in the HUD");
 assert(walkGame.interruptFlash > 0, "car interrupt flashes");
+assert(walkGame.interruptTarget === carEnt, "attention flash targets the car");
 
 plantOnGrass(walkGame);
 walkGame.people = [{ x: g.cx + 20, y: g.cy, dirX: 0, dirY: 0, kind: "person", timer: 1 }];
@@ -327,6 +334,99 @@ assert(css.indexOf('content: "A"') === -1 && css.indexOf("content: 'A'") === -1,
 assert(css.indexOf('content: "B"') === -1 && css.indexOf("content: 'B'") === -1, "B is not CSS generated text");
 assert(css.indexOf("▲") === -1 && css.indexOf("▼") === -1, "CSS has no Unicode arrows");
 assert(css.indexOf("align-items: center") !== -1 && css.indexOf("justify-content: center") !== -1, "A/B buttons flex-center their glyphs");
+assert(html.indexOf("js/dither.js") !== -1, "index loads Bayer dither");
+assert(html.indexOf("js/art.js") !== -1, "index loads house/fence art stamps");
+assert(fs.existsSync(path.join(__dirname, "..", "art", "README.md")), "art sheet hook is documented");
+
+var Dither = context.GoMomoDither;
+assert(Dither.BG === "#c9d63a" && Dither.INK === "#2a1c12", "Playdate palette constants");
+var sw = 48;
+var sh = 24;
+var sample = { width: sw, height: sh, data: new Uint8ClampedArray(sw * sh * 4) };
+function put(px, py, rgb) {
+  var i = (py * sw + px) * 4;
+  sample.data[i] = rgb[0];
+  sample.data[i + 1] = rgb[1];
+  sample.data[i + 2] = rgb[2];
+  sample.data[i + 3] = 255;
+}
+var roadRgb = [0x1a, 0x16, 0x12];
+var walkRgb = [0xb7, 0xc2, 0x5c];
+var carRgb = [0xc9, 0xd6, 0x3a];
+var houseRgb = [0x8c, 0x7a, 0x42];
+var x, y;
+for (y = 0; y < sh; y++) {
+  for (x = 0; x < sw; x++) {
+    if (x < 18) put(x, y, roadRgb);
+    else if (x < 30) put(x, y, walkRgb);
+    else if (x < 40) put(x, y, houseRgb);
+    else put(x, y, carRgb);
+  }
+}
+Dither.ditherImageData(sample);
+var colors = Dither.collectColors(sample);
+assert(colors.length <= 2, "sampled frame dithers to at most two colors (got " + colors.join(",") + ")");
+assert(Dither.isPlaydatePalette(sample), "sampled frame uses only lime + ink");
+
+var gameSrc = fs.readFileSync(path.join(jsDir, "game.js"), "utf8");
+assert(gameSrc.indexOf("#8f8f88") === -1, "game.js has no mid-gray sidewalk fill");
+assert(gameSrc.indexOf("#0e0c0a") === -1, "game.js has no near-black road fill");
+assert(gameSrc.indexOf("You left it.") === -1, "house-accident copy is no longer the generic leave line");
+
+var GameApi = context.GoMomoGame;
+assert(GameApi.COPY.house === "Accident. Inside.", "house accident placeholder copy");
+assert(GameApi.COPY.clock === "He can hold it. You cannot.", "clock timeout copy stays distinct");
+assert(GameApi.COPY.house !== GameApi.COPY.clock, "house vs clock copy are different");
+assert(GameApi.COPY.win === "Good boy.", "win copy unchanged");
+
+var houseLose = new Game(20260914);
+houseLose.hasLeftHome = true;
+houseLose.didPoop = false;
+houseLose.clock = 40;
+houseLose.walker.x = houseLose.map.home.stoop.x;
+houseLose.walker.y = houseLose.map.home.stoop.y;
+houseLose.updateOutcome();
+assert(houseLose.state === "lost", "home before poop is a loss");
+assert(houseLose.endReason === "house", "home before poop is a house accident");
+assert(houseLose.endCopy === GameApi.COPY.house, "house accident uses house copy");
+
+var clockLose = new Game(20260914);
+clockLose.hasLeftHome = true;
+clockLose.didPoop = false;
+clockLose.clock = 0;
+clockLose.updateOutcome();
+assert(clockLose.state === "lost", "clock timeout is a loss");
+assert(clockLose.endReason === "clock", "clock timeout records clock reason");
+assert(clockLose.endCopy === GameApi.COPY.clock, "clock timeout uses clock copy");
+assert(clockLose.endCopy !== houseLose.endCopy, "clock and house accident are not the same string");
+
+var playA = new Game(20260914);
+playA.advanceLevel();
+assert(playA.level === 2, "setup: play at level 2");
+var seedPlay = playA.map.seed;
+var walkerX = playA.walker.x;
+playA.update(0.016, fakeInput(true, false));
+assert(playA.state === "play", "A during play does not change state");
+assert(playA.level === 2, "A during play does not reset the level");
+assert(playA.map.seed === seedPlay, "A during play does not reroll the seed");
+assert(playA.walker.x === walkerX, "A during play does not reset the walker");
+
+var playB = new Game(20260914);
+playB.update(0.016, fakeInput(false, true));
+assert(playB.state === "play", "B during play does not change state");
+assert(playB.map.seed === 20260914, "B during play does not change neighborhood");
+assert(playB.level === 1, "B during play does not change level");
+
+var leak = new Game(20260914);
+leak.advanceLevel();
+assert(leak.level === 2, "setup leftover A at level 2");
+leak.update(0.016, fakeInput(true, false));
+leak.state = "lost";
+leak.endReason = "clock";
+leak.endCopy = GameApi.COPY.clock;
+leak.update(0.016, fakeInput(false, false));
+assert(leak.level === 2, "A pressed during play does not start-over on the next lose frame");
+assert(leak.state === "lost", "leftover A does not consume the lose overlay");
 
 if (fails) {
   console.error(fails + " assertion(s) failed");

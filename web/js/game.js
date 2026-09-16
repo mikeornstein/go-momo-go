@@ -5,17 +5,29 @@
   "use strict";
 
   var Map = root.GoMomoMap;
+  var Dither = root.GoMomoDither;
+  var Art = root.GoMomoArt;
   var CELL = Map.CELL;
   var VIEW_W = Map.VIEW_W;
   var VIEW_H = Map.VIEW_H;
   var CELL_SIZE = Map.CELL_SIZE;
 
-  var BG = "#c9d63a";
-  var INK = "#2a1c12";
-  var ROAD = "#0e0c0a";
-  var WALK = "#8f8f88";
-  var WALK_LINE = "#6c6c66";
-  var CURB = "#2a2824";
+  var BG = Dither ? Dither.BG : "#c9d63a";
+  var INK = Dither ? Dither.INK : "#2a1c12";
+  // Pre-dither greys only. The LCD pass quantizes to BG/INK. Not shown as fills.
+  var PRE = {
+    road: "#1a1612",
+    walk: "#b7c25c",
+    walkLine: "#6a5c32",
+    yard: "#9aaa48",
+    drive: "#5a4c28",
+  };
+
+  var COPY = {
+    win: "Good boy.",
+    clock: "He can hold it. You cannot.",
+    house: "Accident. Inside.",
+  };
 
   var WALK_SPEED = 60;
   var CAR_SPEED = 36;
@@ -61,6 +73,7 @@
       typeof location !== "undefined" && /[?&]debug=1/.test(location.search || "");
     this.originSeed = seed == null ? 20260914 : seed;
     this.level = 1;
+    this.art = Art ? new Art.Art() : null;
     this.reset(this.originSeed, 1);
   }
 
@@ -105,12 +118,14 @@
     this.didPoop = false;
     this.hasLeftHome = false;
     this.state = "play";
+    this.endReason = null;
     this.endCopy = "";
     this.message = "Get Momo to the grass.";
     this.messageT = 2.2;
     this.stun = 0;
     this.interruptFlash = 0;
     this.interruptKind = null;
+    this.interruptTarget = null;
     this.time = 0;
     this.cam = { x: 0, y: 0 };
     this.frameHome();
@@ -366,26 +381,39 @@
     return hypot(dx, dy);
   };
 
-  Game.prototype.interruptNear = function () {
+  Game.prototype.interruptHit = function () {
     var m = this.momo;
     var w = this.walker;
     var r = this.interruptR;
     var pr = this.peemailR;
     var cr = this.carSpookR;
     for (var i = 0; i < this.people.length; i++) {
-      if (dist(m, this.people[i]) < r || dist(w, this.people[i]) < r) return "person";
+      if (dist(m, this.people[i]) < r || dist(w, this.people[i]) < r) {
+        return { kind: "person", target: this.people[i] };
+      }
     }
     for (var j = 0; j < this.dogs.length; j++) {
-      if (dist(m, this.dogs[j]) < r || dist(w, this.dogs[j]) < r) return "dog";
+      if (dist(m, this.dogs[j]) < r || dist(w, this.dogs[j]) < r) {
+        return { kind: "dog", target: this.dogs[j] };
+      }
     }
     for (var k = 0; k < this.peemail.length; k++) {
-      if (dist(m, this.peemail[k]) < pr || dist(w, this.peemail[k]) < pr) return "pee-mail";
+      if (dist(m, this.peemail[k]) < pr || dist(w, this.peemail[k]) < pr) {
+        return { kind: "pee-mail", target: this.peemail[k] };
+      }
     }
     for (var c = 0; c < this.cars.length; c++) {
       var car = this.cars[c];
-      if (this.carClearance(m, car) < cr || this.carClearance(w, car) < cr) return "car";
+      if (this.carClearance(m, car) < cr || this.carClearance(w, car) < cr) {
+        return { kind: "car", target: car };
+      }
     }
     return null;
+  };
+
+  Game.prototype.interruptNear = function () {
+    var hit = this.interruptHit();
+    return hit ? hit.kind : null;
   };
 
   Game.prototype.advanceLevel = function () {
@@ -397,11 +425,12 @@
     this.reset(this.originSeed, 1);
   };
 
-  Game.prototype.applyInterrupt = function (kind) {
+  Game.prototype.applyInterrupt = function (kind, target) {
     var hadProgress = this.poop > 0;
     this.poop = 0;
     this.interruptFlash = 0.7;
     this.interruptKind = kind;
+    this.interruptTarget = target || null;
     if (hadProgress) this.say("Interrupted — " + kind + "!", 1.6);
     else this.say("Too busy — " + kind + ".", 1.1);
   };
@@ -417,9 +446,9 @@
       this.say("Stand still to pace.", 0.8);
       return;
     }
-    var spook = this.interruptNear();
+    var spook = this.interruptHit();
     if (spook) {
-      this.applyInterrupt(spook);
+      this.applyInterrupt(spook.kind, spook.target);
       return;
     }
     this.poop = Math.min(1, this.poop + dt / PACE_TIME);
@@ -441,26 +470,29 @@
     }
 
     if (this.clock <= 0) {
-      this.state = "lost";
-      this.endCopy = "He can hold it. You cannot.";
+      this.setEnd("clock");
       return;
     }
     if (this.hasLeftHome && kind === CELL.HOME) {
-      if (this.didPoop) {
-        this.state = "won";
-        this.endCopy = "Good boy.";
-      } else {
-        this.state = "lost";
-        this.endCopy = "You left it.";
-      }
+      if (this.didPoop) this.setEnd("win");
+      else this.setEnd("house");
     }
+  };
+
+  Game.prototype.setEnd = function (reason) {
+    this.endReason = reason;
+    this.endCopy = COPY[reason] || "";
+    this.state = reason === "win" ? "won" : "lost";
   };
 
   Game.prototype.update = function (dt, input) {
     this.time += dt;
     if (this.messageT > 0) this.messageT -= dt;
     if (this.interruptFlash > 0) this.interruptFlash -= dt;
-    else this.interruptKind = null;
+    else {
+      this.interruptKind = null;
+      this.interruptTarget = null;
+    }
 
     if (this.state !== "play") {
       if (input.consumeRestart()) {
@@ -474,14 +506,10 @@
       return;
     }
 
-    if (input.consumeRestart()) {
-      this.reset(this.map.seed, this.level);
-      return;
-    }
-    if (input.consumeNewBlock()) {
-      this.reset((this.map.seed + 1) >>> 0, this.level);
-      return;
-    }
+    // A/B (Enter/N and face buttons) are end-screen only. Discard so a play-frame
+    // press cannot leak into the next win/lose overlay.
+    input.consumeRestart();
+    input.consumeNewBlock();
 
     var axis = input.axis();
     var walk = this.updateWalker(dt, axis);
@@ -572,7 +600,7 @@
     var worldW = this.map.worldW;
     var worldH = this.map.worldH;
 
-    ctx.fillStyle = WALK;
+    ctx.fillStyle = PRE.walk;
     for (i = 0; i < this.map.vStreets.length; i++) {
       var vs = this.map.vStreets[i];
       ctx.fillRect(vs.walkL0, 0, vs.walkL1 - vs.walkL0, worldH);
@@ -588,7 +616,7 @@
       this.drawPavers(ctx, 0, hs.walkB0, worldW, hs.walkB1 - hs.walkB0);
     }
 
-    ctx.fillStyle = ROAD;
+    ctx.fillStyle = PRE.road;
     for (i = 0; i < this.map.vStreets.length; i++) {
       vs = this.map.vStreets[i];
       ctx.fillRect(vs.asphalt0, 0, vs.asphalt1 - vs.asphalt0, worldH);
@@ -598,7 +626,7 @@
       ctx.fillRect(0, hs.asphalt0, worldW, hs.asphalt1 - hs.asphalt0);
     }
 
-    ctx.fillStyle = CURB;
+    this.ink(ctx);
     for (i = 0; i < this.map.vStreets.length; i++) {
       vs = this.map.vStreets[i];
       ctx.fillRect(vs.asphalt0, 0, 1, worldH);
@@ -642,15 +670,27 @@
         x = c * CELL_SIZE;
         y = r * CELL_SIZE;
         if (kind === CELL.YARD) {
+          ctx.fillStyle = PRE.yard;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
           ctx.fillStyle = pats.yard;
           ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
         } else if (kind === CELL.FENCE) {
-          ctx.fillStyle = pats.fence;
+          ctx.fillStyle = pats.grass;
           ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-          this.ink(ctx);
-          ctx.fillRect(x, y, CELL_SIZE, 1);
-          ctx.fillRect(x, y + CELL_SIZE - 1, CELL_SIZE, 1);
+          if (this.art) {
+            this.art.drawFence(ctx, x, y, CELL_SIZE, {
+              N: Map.getCell(this.map.cells, c, r - 1) === CELL.FENCE,
+              S: Map.getCell(this.map.cells, c, r + 1) === CELL.FENCE,
+              E: Map.getCell(this.map.cells, c + 1, r) === CELL.FENCE,
+              W: Map.getCell(this.map.cells, c - 1, r) === CELL.FENCE,
+            });
+          } else {
+            ctx.fillStyle = pats.fence;
+            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+          }
         } else if (kind === CELL.DRIVEWAY) {
+          ctx.fillStyle = PRE.drive;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
           ctx.fillStyle = pats.drive;
           ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
         } else if (kind === CELL.GRASS) {
@@ -676,7 +716,7 @@
     var x1 = Math.min(x + w, this.cam.x + VIEW_W + 2);
     var y1 = Math.min(y + h, this.cam.y + VIEW_H + 2);
     if (x1 <= x0 || y1 <= y0) return;
-    ctx.fillStyle = WALK_LINE;
+    ctx.fillStyle = PRE.walkLine;
     var step = 10;
     var xx;
     var yy;
@@ -731,18 +771,76 @@
   };
 
   Game.prototype.drawBuildings = function (ctx) {
-    this.ink(ctx);
     for (var i = 0; i < this.map.buildings.length; i++) {
       var b = this.map.buildings[i];
       if (b.x + b.w < this.cam.x - 4 || b.x > this.cam.x + VIEW_W + 4) continue;
       if (b.y + b.h < this.cam.y - 8 || b.y > this.cam.y + VIEW_H + 4) continue;
-      ctx.fillRect(b.x, b.y, b.w, b.h);
-      ctx.fillStyle = BG;
-      ctx.fillRect(b.x + 4, b.y + 6, 5, 5);
-      if (b.w > 24) ctx.fillRect(b.x + b.w - 10, b.y + 6, 5, 5);
-      if (b.home) ctx.fillRect(b.x + b.w / 2 - 3, b.y + b.h - 10, 6, 10);
-      this.ink(ctx);
-      if (b.roof) ctx.fillRect(b.x + 2, b.y - 5, b.w - 4, 5);
+      if (this.art) {
+        this.art.drawHouse(ctx, b);
+      } else {
+        this.ink(ctx);
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.fillStyle = BG;
+        ctx.fillRect(b.x + 4, b.y + 6, 5, 5);
+        if (b.w > 24) ctx.fillRect(b.x + b.w - 10, b.y + 6, 5, 5);
+        this.ink(ctx);
+      }
+    }
+  };
+
+  Game.prototype.isFlashing = function (ent) {
+    return this.interruptFlash > 0 && this.interruptTarget === ent;
+  };
+
+  Game.prototype.flashPulse = function () {
+    return ((this.time * 10) | 0) % 2 === 0;
+  };
+
+  Game.prototype.drawFlashBox = function (ctx, x, y, w, h) {
+    var pulse = this.flashPulse();
+    ctx.fillStyle = pulse ? BG : INK;
+    ctx.fillRect(Math.floor(x) - 2, Math.floor(y) - 2, w + 4, h + 4);
+    ctx.fillStyle = pulse ? INK : BG;
+    ctx.fillRect(Math.floor(x) - 1, Math.floor(y) - 1, w + 2, h + 2);
+  };
+
+  Game.prototype.drawFlashMark = function (ctx, x, y) {
+    var pulse = this.flashPulse();
+    ctx.fillStyle = pulse ? BG : INK;
+    ctx.fillRect(Math.floor(x) - 1, Math.floor(y) - 12, 3, 7);
+    ctx.fillRect(Math.floor(x) - 1, Math.floor(y) - 4, 3, 3);
+  };
+
+  Game.prototype.drawCar = function (ctx, c) {
+    var x = Math.floor(c.x - c.w / 2);
+    var y = Math.floor(c.y - c.h / 2);
+    if (this.isFlashing(c)) {
+      this.drawFlashBox(ctx, x, y, c.w, c.h);
+      this.drawFlashMark(ctx, c.x, y);
+    }
+    this.ink(ctx);
+    ctx.fillRect(x, y, c.w, c.h);
+    ctx.fillStyle = BG;
+    ctx.fillRect(x + 1, y + 1, Math.max(1, c.w - 2), Math.max(1, c.h - 2));
+    ctx.fillStyle = "#7a6a38";
+    if (c.axis === "x") {
+      ctx.fillRect(x + 3, y + 2, 4, Math.max(1, c.h - 4));
+      ctx.fillRect(x + c.w - 7, y + 2, 4, Math.max(1, c.h - 4));
+    } else {
+      ctx.fillRect(x + 2, y + 3, Math.max(1, c.w - 4), 4);
+      ctx.fillRect(x + 2, y + c.h - 7, Math.max(1, c.w - 4), 4);
+    }
+    this.ink(ctx);
+    if (c.axis === "x") {
+      ctx.fillRect(x + 2, y - 1, 3, 2);
+      ctx.fillRect(x + c.w - 5, y - 1, 3, 2);
+      ctx.fillRect(x + 2, y + c.h - 1, 3, 2);
+      ctx.fillRect(x + c.w - 5, y + c.h - 1, 3, 2);
+    } else {
+      ctx.fillRect(x - 1, y + 2, 2, 3);
+      ctx.fillRect(x + c.w - 1, y + 2, 2, 3);
+      ctx.fillRect(x - 1, y + c.h - 5, 2, 3);
+      ctx.fillRect(x + c.w - 1, y + c.h - 5, 2, 3);
     }
   };
 
@@ -751,25 +849,48 @@
     var i;
     for (i = 0; i < this.peemail.length; i++) {
       var m = this.peemail[i];
-      ctx.fillRect(m.x - 2, m.y - 1, 4, 3);
-    }
-    for (i = 0; i < this.cars.length; i++) {
-      var c = this.cars[i];
-      ctx.fillRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h);
+      var mx0 = Math.floor(m.x - 3);
+      var my0 = Math.floor(m.y - 2);
+      if (this.isFlashing(m)) {
+        this.drawFlashBox(ctx, mx0, my0, 7, 5);
+        this.drawFlashMark(ctx, m.x, my0);
+      }
+      this.ink(ctx);
+      ctx.fillRect(mx0, my0, 6, 4);
       ctx.fillStyle = BG;
-      ctx.fillRect(c.x - 2, c.y - 2, 4, 4);
+      ctx.fillRect(mx0 + 1, my0 + 1, 2, 2);
       this.ink(ctx);
     }
+    for (i = 0; i < this.cars.length; i++) this.drawCar(ctx, this.cars[i]);
     for (i = 0; i < this.people.length; i++) {
       var p = this.people[i];
-      ctx.fillRect(p.x - 3, p.y - 8, 6, 11);
+      var px = Math.floor(p.x - 3);
+      var py = Math.floor(p.y - 8);
+      if (this.isFlashing(p)) {
+        this.drawFlashBox(ctx, px, py, 6, 11);
+        this.drawFlashMark(ctx, p.x, py);
+      }
+      ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? BG : INK;
+      ctx.fillRect(px, py, 6, 11);
+      ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? INK : BG;
+      ctx.fillRect(px + 2, py + 2, 2, 2);
     }
     for (i = 0; i < this.dogs.length; i++) {
       var d = this.dogs[i];
-      ctx.fillRect(d.x - 5, d.y - 3, 9, 6);
-      ctx.fillRect(d.x + 3, d.y - 5, 3, 3);
+      var dx = Math.floor(d.x - 5);
+      var dy = Math.floor(d.y - 3);
+      if (this.isFlashing(d)) {
+        this.drawFlashBox(ctx, dx, dy - 2, 10, 8);
+        this.drawFlashMark(ctx, d.x, dy);
+      }
+      ctx.fillStyle = this.isFlashing(d) && this.flashPulse() ? BG : INK;
+      ctx.fillRect(dx, dy, 9, 6);
+      ctx.fillRect(dx + 8, dy - 2, 3, 3);
+      ctx.fillStyle = this.isFlashing(d) && this.flashPulse() ? INK : BG;
+      ctx.fillRect(dx + 2, dy + 1, 2, 2);
     }
 
+    this.ink(ctx);
     ctx.beginPath();
     ctx.moveTo(this.walker.x, this.walker.y - 6);
     ctx.lineTo(this.momo.x, this.momo.y - 2);
@@ -795,16 +916,6 @@
     ctx.fillStyle = BG;
     ctx.fillRect(mx - 1, my - 2, 3, 3);
     this.ink(ctx);
-    if (this.interruptFlash > 0) {
-      ctx.fillStyle = BG;
-      ctx.fillRect(mx - 12, my - 18, 24, 6);
-      ctx.fillRect(mx - 13, my - 12, 5, 5);
-      ctx.fillRect(mx + 8, my - 12, 5, 5);
-      this.ink(ctx);
-      ctx.fillRect(mx - 2, my - 21, 3, 6);
-      ctx.fillRect(mx + 8, my - 16, 3, 3);
-      ctx.fillRect(mx - 11, my - 16, 3, 3);
-    }
   };
 
   Game.prototype.drawHud = function (ctx) {
@@ -875,19 +986,39 @@
     }
   };
 
+  Game.prototype.ensureWorld = function () {
+    if (this._world) return this._worldCtx;
+    var c = document.createElement("canvas");
+    c.width = VIEW_W;
+    c.height = VIEW_H;
+    this._world = c;
+    this._worldCtx = c.getContext("2d", { alpha: false, willReadFrequently: true });
+    this._worldCtx.imageSmoothingEnabled = false;
+    return this._worldCtx;
+  };
+
   Game.prototype.draw = function (ctx) {
     ctx.imageSmoothingEnabled = false;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, VIEW_W, VIEW_H);
-    ctx.clip();
-    ctx.translate(-this.cam.x, -this.cam.y);
-    this.drawYardDither(ctx);
-    this.drawCells(ctx);
-    this.drawBuildings(ctx);
-    this.drawActors(ctx);
-    this.drawDebug(ctx);
-    ctx.restore();
+    var g = this.ensureWorld();
+    g.imageSmoothingEnabled = false;
+    g.save();
+    g.beginPath();
+    g.rect(0, 0, VIEW_W, VIEW_H);
+    g.clip();
+    g.translate(-this.cam.x, -this.cam.y);
+    this.drawYardDither(g);
+    this.drawCells(g);
+    this.drawBuildings(g);
+    this.drawActors(g);
+    this.drawDebug(g);
+    g.restore();
+    if (Dither) {
+      var img = g.getImageData(0, 0, VIEW_W, VIEW_H);
+      Dither.ditherImageData(img);
+      ctx.putImageData(img, 0, 0);
+    } else {
+      ctx.drawImage(this._world, 0, 0);
+    }
     this.drawHud(ctx);
   };
 
@@ -895,8 +1026,8 @@
     Game: Game,
     BG: BG,
     INK: INK,
-    ROAD: ROAD,
-    WALK: WALK,
+    COPY: COPY,
+    PRE: PRE,
     CLOCK: CLOCK,
     CLOCK_STEP: CLOCK_STEP,
     CLOCK_MIN: CLOCK_MIN,
