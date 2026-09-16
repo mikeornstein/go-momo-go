@@ -24,6 +24,7 @@ load("rng.js");
 load("map.js");
 load("dither.js");
 load("art.js");
+load("font.js");
 
 var Map = context.GoMomoMap;
 var CELL = Map.CELL;
@@ -286,7 +287,7 @@ assert(GameApi.clockForLevel(20) === GameApi.CLOCK_MIN, "clock floors at CLOCK_M
 function tallyActors(game) {
   return game.people.length + game.dogs.length + game.peemail.length + game.cars.length;
 }
-function fakeInput(restart, fresh) {
+function fakeInput(restart, fresh, menu) {
   return {
     consumeRestart: function () {
       var v = restart;
@@ -296,6 +297,11 @@ function fakeInput(restart, fresh) {
     consumeNewBlock: function () {
       var v = fresh;
       fresh = false;
+      return v;
+    },
+    consumeMenu: function () {
+      var v = !!menu;
+      menu = false;
       return v;
     },
     axis: function () {
@@ -552,6 +558,114 @@ assert(GameApi.COPY.splashTitle === "Go Momo Go", "splash title locked");
 assert(GameApi.COPY.splashSub === "Poop. Then home.", "splash subtitle locked");
 assert(gameSrc.indexOf("Walk the block. Pace. Get home.") === -1, "placeholder splash subtitle is gone");
 assert(GameApi.WALK_SLOW < 1, "crowd slow multiplier is below full walk speed");
+
+var Font = context.GoMomoFont;
+assert(Font && typeof Font.draw === "function", "bitmap font module is loaded");
+assert(Font.W === 5 && Font.H === 7, "font is a 5x7 pixel face");
+assert(html.indexOf("js/font.js") !== -1, "index loads the bitmap font");
+assert(html.indexOf('data-action="menu"') !== -1, "chrome has a start/pause control");
+assert(css.indexOf(".menu-btn") !== -1, "start/pause control is a chrome CSS glyph");
+assert(gameSrc.indexOf("ui-monospace") === -1, "game.js has no system ui-monospace font");
+assert(gameSrc.indexOf("fillText") === -1, "game.js never uses canvas fillText");
+assert(gameSrc.indexOf("this.drawUi(ctx)") !== -1, "draw paints a post-dither UI pass");
+var drawSrc = gameSrc.slice(gameSrc.indexOf("Game.prototype.draw = function"));
+drawSrc = drawSrc.slice(0, drawSrc.indexOf("root.GoMomoGame"));
+assert(drawSrc.indexOf("this.drawHud") === -1, "HUD is not painted into the pre-dither world buffer");
+assert(drawSrc.indexOf("ditherImageData") !== -1 && drawSrc.indexOf("this.drawUi") !== -1, "draw still dithers then overlays UI");
+assert(drawSrc.indexOf("this.drawUi") > drawSrc.indexOf("ditherImageData"), "drawUi runs after Bayer dither");
+
+function assertGlyphs(s, msg) {
+  var miss = Font.missing(s);
+  assert(miss.length === 0, msg + " missing glyphs: " + miss.join(" "));
+}
+assertGlyphs(GameApi.COPY.splashTitle, "splash title");
+assertGlyphs(GameApi.COPY.splashSub, "splash subtitle");
+assertGlyphs(GameApi.COPY.splashStart, "splash start hint");
+assertGlyphs(GameApi.COPY.win, "win copy");
+assertGlyphs(GameApi.COPY.house, "house copy");
+assertGlyphs(GameApi.COPY.clock, "clock copy");
+assertGlyphs(GameApi.COPY.pause, "pause title");
+assertGlyphs(GameApi.COPY.resume, "pause resume");
+assertGlyphs(GameApi.COPY.restartDay, "pause restart");
+[
+  "Get Momo to the grass.",
+  "Slow - person.",
+  "Interrupted - pee-mail!",
+  "Pacing...",
+  "Good dump. Get home.",
+  "Sidewalks. Crosswalks. Grass.",
+  "Day 1 - best D1",
+  "POOP OK",
+  "1:15",
+].forEach(function (s) {
+  assertGlyphs(s, s);
+});
+
+var fw = 40;
+var fh = 16;
+var fontSample = { width: fw, height: fh, data: new Uint8ClampedArray(fw * fh * 4) };
+var fi;
+for (fi = 0; fi < fontSample.data.length; fi += 4) {
+  fontSample.data[fi] = 90;
+  fontSample.data[fi + 1] = 110;
+  fontSample.data[fi + 2] = 70;
+  fontSample.data[fi + 3] = 255;
+}
+Dither.ditherImageData(fontSample);
+Font.blitImageData(fontSample, "POOP", 2, 4, Dither.INK_RGB);
+assert(Dither.isPlaydatePalette(fontSample), "bitmap UI over a dithered field stays two-ink");
+var onInk = 0;
+var glyphPx = 0;
+Font.eachPixel("POOP", 2, 4, 1, function (px, py) {
+  if (px < 0 || py < 0 || px >= fw || py >= fh) return;
+  glyphPx++;
+  var i = (py * fw + px) * 4;
+  if (fontSample.data[i] === Dither.INK_RGB[0] && fontSample.data[i + 1] === Dither.INK_RGB[1] && fontSample.data[i + 2] === Dither.INK_RGB[2]) {
+    onInk++;
+  }
+});
+assert(glyphPx > 20, "POOP has on-pixels (" + glyphPx + ")");
+assert(onInk === glyphPx, "every font on-pixel is exact ink after the dither pass (" + onInk + "/" + glyphPx + ")");
+
+var splashMenu = new Game(20260914);
+assert(splashMenu.state === "splash", "setup splash for menu start");
+splashMenu.update(0.016, fakeInput(false, false, true));
+assert(splashMenu.state === "play", "menu/start on splash starts play");
+assert(splashMenu.level === 1, "menu/start on splash stays on day 1");
+
+var pauseRun = new Game(20260914);
+pauseRun.advanceLevel();
+pauseRun.state = "play";
+pauseRun.clock = 40;
+var pauseX = pauseRun.walker.x;
+pauseRun.update(0.016, fakeInput(false, false, true));
+assert(pauseRun.state === "paused", "menu during play pauses");
+assert(pauseRun.level === 2, "pause keeps the current day");
+var pausedClock = pauseRun.clock;
+pauseRun.update(0.4, fakeInput(false, false, false));
+assert(pauseRun.state === "paused", "pause stays paused without input");
+assert(pauseRun.clock === pausedClock, "clock is frozen while paused");
+assert(pauseRun.walker.x === pauseX, "walker is frozen while paused");
+pauseRun.update(0.016, fakeInput(true, false, false));
+assert(pauseRun.state === "play", "A on pause resumes");
+assert(pauseRun.level === 2, "resume does not reset the day");
+assert(pauseRun.clock === pausedClock, "resume keeps the clock");
+assert(pauseRun.walker.x === pauseX, "resume keeps walker position");
+
+var pauseRestart = new Game(20260914);
+pauseRestart.advanceLevel();
+pauseRestart.state = "paused";
+pauseRestart.update(0.016, fakeInput(false, true, false));
+assert(pauseRestart.state === "play", "B on pause returns to play");
+assert(pauseRestart.level === 1, "B on pause restarts at day 1");
+assert(pauseRestart.map.seed === 20260914, "B on pause keeps the neighborhood");
+
+var playMenuNoopA = new Game(20260914);
+playMenuNoopA.advanceLevel();
+playMenuNoopA.state = "play";
+playMenuNoopA.update(0.016, fakeInput(true, false, false));
+assert(playMenuNoopA.state === "play", "A during play does not pause");
+assert(playMenuNoopA.level === 2, "A during play still does not reset the day");
 
 if (fails) {
   console.error(fails + " assertion(s) failed");
