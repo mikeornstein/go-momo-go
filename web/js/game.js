@@ -34,8 +34,10 @@
   var CAR_W_Y = 12;
   var CAR_H_Y = 20;
   var WALK_SPEED = 60;
+  var WALK_SLOW = 0.46;
   var CAR_SPEED = 36;
   var NPC_SPEED = 18;
+  var DOG_LEASH = 11;
   var CLOCK = 75;
   var CLOCK_STEP = 8;
   var CLOCK_MIN = 32;
@@ -77,9 +79,43 @@
       typeof location !== "undefined" && /[?&]debug=1/.test(location.search || "");
     this.originSeed = seed == null ? 20260914 : seed;
     this.level = 1;
+    this.bestDay = this.readBestDay();
     this.art = Art ? new Art.Art() : null;
     this.reset(this.originSeed, 1);
+    this.state = "splash";
   }
+
+  Game.prototype.storage = function () {
+    try {
+      if (typeof localStorage === "undefined") return null;
+      return localStorage;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  Game.prototype.readBestDay = function () {
+    var store = this.storage();
+    if (!store) return 1;
+    var n = parseInt(store.getItem("gomomo-best-day"), 10);
+    return n >= 1 ? n : 1;
+  };
+
+  Game.prototype.noteBestDay = function () {
+    if (this.level > this.bestDay) this.bestDay = this.level;
+    var store = this.storage();
+    if (store) {
+      try {
+        store.setItem("gomomo-best-day", String(this.bestDay));
+      } catch (err) {
+        /* file:// or private mode */
+      }
+    }
+  };
+
+  Game.prototype.dayLabel = function () {
+    return "D" + this.level;
+  };
 
   Game.prototype.reset = function (seed, level) {
     if (level == null) level = this.level != null ? this.level : 1;
@@ -105,10 +141,31 @@
       };
     });
     this.people = this.map.spawns.people.map(function (p) {
-      return { x: p.x, y: p.y, dirX: 0, dirY: 0, kind: "person", timer: 0 };
+      return {
+        x: p.x,
+        y: p.y,
+        dirX: 0,
+        dirY: 0,
+        kind: p.kind || "person",
+        timer: 0,
+        wait: p.wait || 0,
+        wp: p.wp || 0,
+        waypoints: p.waypoints ? p.waypoints.slice() : [],
+        dropT: p.dropT == null ? 3 : p.dropT,
+        homeX: p.homeX,
+        homeY: p.homeY,
+      };
     });
-    this.dogs = this.map.spawns.dogs.map(function (p) {
-      return { x: p.x, y: p.y, dirX: 0, dirY: 0, kind: "dog", timer: 0 };
+    this.dogs = this.map.spawns.dogs.map(function (d) {
+      return {
+        x: d.x,
+        y: d.y,
+        dirX: 0,
+        dirY: 0,
+        kind: "dog",
+        ownerIndex: d.ownerIndex,
+        timer: 0,
+      };
     });
     this.peemail = this.map.spawns.peemail.map(function (p) {
       return { x: p.x, y: p.y };
@@ -208,18 +265,27 @@
   Game.prototype.updateWalker = function (dt, axis) {
     if (this.stun > 0) {
       this.stun -= dt;
-      return { moving: false };
+      return { moving: false, slow: null };
     }
     var moving = axis.x !== 0 || axis.y !== 0;
+    var slow = this.crowdSlow();
     if (moving) {
       this.walker.facingX = axis.x;
       this.walker.facingY = axis.y;
-      this.tryMove(this.walker, axis.x * WALK_SPEED * dt, axis.y * WALK_SPEED * dt);
+      var speed = WALK_SPEED * slow.mul;
+      this.tryMove(this.walker, axis.x * speed * dt, axis.y * speed * dt);
       this.walker.x = clamp(this.walker.x, 1, this.map.worldW - 2);
       this.walker.y = clamp(this.walker.y, 1, this.map.worldH - 2);
       this.snapCamera();
+      if (slow.hit) this.say("Slow — " + slow.hit.kind + ".", 0.7);
     }
-    return { moving: moving };
+    return { moving: moving, slow: slow.hit };
+  };
+
+  Game.prototype.crowdSlow = function () {
+    var hit = this.interruptHit();
+    if (!hit) return { mul: 1, hit: null };
+    return { mul: WALK_SLOW, hit: hit };
   };
 
   Game.prototype.updateMomo = function (dt) {
@@ -369,9 +435,135 @@
     return k === CELL.SIDEWALK || k === CELL.CROSSWALK;
   };
 
+  Game.prototype.followWaypoints = function (npc, dt, speed) {
+    if (npc.wait > 0) {
+      npc.wait -= dt;
+      npc.dirX = 0;
+      npc.dirY = 0;
+      return;
+    }
+    var wps = npc.waypoints;
+    if (!wps || !wps.length) {
+      this.sidewalkStep(npc, dt, speed);
+      return;
+    }
+    if (npc.wp >= wps.length) {
+      npc.wp = 0;
+      npc.wait = 1.4 + Math.random() * 2.2;
+      npc.x = npc.homeX != null ? npc.homeX : wps[0].x;
+      npc.y = npc.homeY != null ? npc.homeY : wps[0].y;
+      return;
+    }
+    var t = wps[npc.wp];
+    var dx = t.x - npc.x;
+    var dy = t.y - npc.y;
+    var d = hypot(dx, dy);
+    if (d < 5) {
+      npc.wp += 1;
+      return;
+    }
+    var dirX;
+    var dirY;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      dirX = dx < 0 ? -1 : 1;
+      dirY = 0;
+    } else {
+      dirX = 0;
+      dirY = dy < 0 ? -1 : 1;
+    }
+    var stepX = dirX * speed * dt;
+    var stepY = dirY * speed * dt;
+    if (!this.canNpcStand(npc.x + stepX, npc.y + stepY)) {
+      if (dirX !== 0 && this.canNpcStand(npc.x, npc.y + (dy < 0 ? -speed * dt : speed * dt))) {
+        dirX = 0;
+        dirY = dy < 0 ? -1 : 1;
+        stepX = 0;
+        stepY = dirY * speed * dt;
+      } else if (dirY !== 0 && this.canNpcStand(npc.x + (dx < 0 ? -speed * dt : speed * dt), npc.y)) {
+        dirY = 0;
+        dirX = dx < 0 ? -1 : 1;
+        stepX = dirX * speed * dt;
+        stepY = 0;
+      }
+    }
+    npc.dirX = dirX;
+    npc.dirY = dirY;
+    npc.x += stepX;
+    npc.y += stepY;
+    if (!this.canNpcStand(npc.x, npc.y)) {
+      npc.x -= stepX;
+      npc.y -= stepY;
+      npc.wp += 1;
+    }
+  };
+
+  Game.prototype.followOwner = function (dog, dt) {
+    var owner = this.people[dog.ownerIndex];
+    if (!owner) return;
+    var behindX = owner.x - (owner.dirX || 0) * DOG_LEASH;
+    var behindY = owner.y - (owner.dirY || 0) * DOG_LEASH;
+    if (owner.dirX === 0 && owner.dirY === 0) {
+      behindX = owner.x - DOG_LEASH;
+      behindY = owner.y;
+    }
+    if (!this.canNpcStand(behindX, behindY)) {
+      var alts = [
+        [owner.x - DOG_LEASH, owner.y],
+        [owner.x + DOG_LEASH, owner.y],
+        [owner.x, owner.y - DOG_LEASH],
+        [owner.x, owner.y + DOG_LEASH],
+      ];
+      var a;
+      behindX = owner.x;
+      behindY = owner.y;
+      for (a = 0; a < alts.length; a++) {
+        if (this.canNpcStand(alts[a][0], alts[a][1])) {
+          behindX = alts[a][0];
+          behindY = alts[a][1];
+          break;
+        }
+      }
+    }
+    var dx = behindX - dog.x;
+    var dy = behindY - dog.y;
+    var d = hypot(dx, dy);
+    var pull = Math.min(NPC_SPEED * 1.45, 12 + d * 2);
+    if (d > 1) {
+      var nx = dog.x + (dx / d) * pull * dt;
+      var ny = dog.y + (dy / d) * pull * dt;
+      if (this.canNpcStand(nx, ny)) {
+        dog.x = nx;
+        dog.y = ny;
+      } else if (this.canNpcStand(behindX, behindY)) {
+        dog.x = behindX;
+        dog.y = behindY;
+      }
+      dog.dirX = dx < -0.4 ? -1 : dx > 0.4 ? 1 : 0;
+      dog.dirY = dy < -0.4 ? -1 : dy > 0.4 ? 1 : 0;
+    }
+  };
+
+  Game.prototype.dropPeeMail = function (person, dt) {
+    if (person.kind === "mimi") return;
+    person.dropT -= dt;
+    if (person.dropT > 0) return;
+    person.dropT = 3.5 + Math.random() * 5;
+    var cap = 8 + this.level * 3;
+    if (this.peemail.length >= cap) return;
+    if (!this.canNpcStand(person.x, person.y)) return;
+    var t = this.map.tutorialGrass;
+    if (t && hypot(person.x - t.cx, person.y - t.cy) < CELL_SIZE * 3) return;
+    this.peemail.push({ x: person.x, y: person.y });
+  };
+
   Game.prototype.updateCrowd = function (dt) {
-    for (var i = 0; i < this.people.length; i++) this.sidewalkStep(this.people[i], dt, NPC_SPEED);
-    for (var j = 0; j < this.dogs.length; j++) this.sidewalkStep(this.dogs[j], dt, NPC_SPEED * 1.15);
+    var i;
+    for (i = 0; i < this.people.length; i++) {
+      var speed = this.people[i].kind === "mimi" ? NPC_SPEED * 0.82 : NPC_SPEED;
+      this.followWaypoints(this.people[i], dt, speed);
+      this.dropPeeMail(this.people[i], dt);
+    }
+    for (i = 0; i < this.dogs.length; i++) this.followOwner(this.dogs[i], dt);
   };
 
   Game.prototype.say = function (text, t) {
@@ -393,7 +585,8 @@
     var cr = this.carSpookR;
     for (var i = 0; i < this.people.length; i++) {
       if (dist(m, this.people[i]) < r || dist(w, this.people[i]) < r) {
-        return { kind: "person", target: this.people[i] };
+        var kind = this.people[i].kind === "mimi" ? "mimi" : "person";
+        return { kind: kind, target: this.people[i] };
       }
     }
     for (var j = 0; j < this.dogs.length; j++) {
@@ -487,6 +680,7 @@
     this.endReason = reason;
     this.endCopy = COPY[reason] || "";
     this.state = reason === "win" ? "won" : "lost";
+    this.noteBestDay();
   };
 
   Game.prototype.update = function (dt, input) {
@@ -496,6 +690,11 @@
     else {
       this.interruptKind = null;
       this.interruptTarget = null;
+    }
+
+    if (this.state === "splash") {
+      if (input.consumeRestart() || input.consumeNewBlock()) this.state = "play";
+      return;
     }
 
     if (this.state !== "play") {
@@ -510,8 +709,8 @@
       return;
     }
 
-    // A/B (Enter/N and face buttons) are end-screen only. Discard so a play-frame
-    // press cannot leak into the next win/lose overlay.
+    // A/B (Enter/N and face buttons) are splash + end-screen only. Discard so a
+    // play-frame press cannot leak into the next overlay.
     input.consumeRestart();
     input.consumeNewBlock();
 
@@ -895,18 +1094,35 @@
     for (i = 0; i < this.people.length; i++) {
       var p = this.people[i];
       var px = Math.floor(p.x - 3);
-      var py = Math.floor(p.y - 8);
+      var py = Math.floor(p.y - (p.kind === "mimi" ? 9 : 8));
       if (this.isFlashing(p)) {
-        this.drawFlashBox(ctx, px, py, 6, 11);
+        this.drawFlashBox(ctx, px, py, p.kind === "mimi" ? 8 : 6, p.kind === "mimi" ? 13 : 11);
         this.drawFlashMark(ctx, p.x, py);
       }
       ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? BG : INK;
-      ctx.fillRect(px, py, 6, 11);
-      ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? INK : BG;
-      ctx.fillRect(px + 2, py + 2, 2, 2);
+      if (p.kind === "mimi") {
+        ctx.fillRect(px, py + 3, 8, 10);
+        ctx.fillRect(px + 1, py, 6, 5);
+        ctx.fillRect(px + 2, py - 2, 4, 3);
+        ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? INK : BG;
+        ctx.fillRect(px + 3, py + 2, 2, 2);
+      } else {
+        ctx.fillRect(px, py, 6, 11);
+        ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? INK : BG;
+        ctx.fillRect(px + 2, py + 2, 2, 2);
+      }
     }
     for (i = 0; i < this.dogs.length; i++) {
       var d = this.dogs[i];
+      var owner = this.people[d.ownerIndex];
+      if (owner) {
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(owner.x, owner.y - 4);
+        ctx.lineTo(d.x, d.y);
+        ctx.stroke();
+      }
       var dx = Math.floor(d.x - 5);
       var dy = Math.floor(d.y - 3);
       if (this.isFlashing(d)) {
@@ -955,8 +1171,8 @@
     ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.textBaseline = "top";
     ctx.fillText(formatClock(this.clock), 4, 2);
-    ctx.fillText("L" + this.level, 36, 2);
-    ctx.fillText(this.didPoop ? "POOP OK" : "POOP", 56, 2);
+    ctx.fillText(this.dayLabel(), 36, 2);
+    ctx.fillText(this.didPoop ? "POOP OK" : "POOP", 58, 2);
     var meterX = 96;
     ctx.fillRect(meterX, 3, 42, 6);
     ctx.fillStyle = INK;
@@ -979,22 +1195,24 @@
     var hint = this.messageT > 0 ? this.message : this.didPoop ? "Home before work." : "Sidewalks. Crosswalks. Grass.";
     ctx.fillText(hint, 144, 2);
 
-    if (this.state !== "play") {
+    if (this.state !== "play" && this.state !== "splash") {
       ctx.fillStyle = BG;
-      ctx.fillRect(48, 70, 304, 100);
+      ctx.fillRect(48, 58, 304, 124);
       this.ink(ctx);
-      ctx.fillRect(50, 72, 300, 96);
+      ctx.fillRect(50, 60, 300, 120);
       ctx.fillStyle = BG;
       ctx.font = "13px ui-monospace, SFMono-Regular, Menlo, monospace";
-      var copyLines = this.drawEndCopy(ctx, this.endCopy, 62, 88);
+      var copyLines = this.drawEndCopy(ctx, this.endCopy, 62, 76);
       ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-      var hintY = 88 + copyLines * 16 + 8;
+      var hintY = 76 + copyLines * 16 + 8;
+      ctx.fillText("Day " + this.level + "  ·  best D" + this.bestDay, 62, hintY);
+      hintY += 14;
       if (this.state === "won") {
-        ctx.fillText("Enter / A — next level (" + (this.level + 1) + ")", 62, hintY);
+        ctx.fillText("Enter / A — next day (" + (this.level + 1) + ")", 62, hintY);
         ctx.fillText("N / B — next neighborhood", 62, hintY + 16);
       } else {
-        ctx.fillText("Enter / A — start over (level 1)", 62, hintY);
-        ctx.fillText("N / B — new neighborhood (level 1)", 62, hintY + 16);
+        ctx.fillText("Streak over. Enter / A — day 1", 62, hintY);
+        ctx.fillText("N / B — new neighborhood (day 1)", 62, hintY + 16);
       }
     }
   };
@@ -1015,6 +1233,44 @@
       ctx.fillRect(g.x, g.y, 2, g.h);
       ctx.fillRect(g.x + g.w - 2, g.y, 2, g.h);
     }
+  };
+
+  Game.prototype.drawSplash = function (ctx) {
+    ctx.fillStyle = BG;
+    ctx.fillRect(36, 28, 328, 168);
+    this.ink(ctx);
+    ctx.fillRect(38, 30, 324, 164);
+    ctx.fillStyle = BG;
+    ctx.font = "22px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.textBaseline = "top";
+    ctx.fillText("Go Momo Go", 78, 46);
+    ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText("Walk the block. Pace. Get home.", 78, 76);
+    ctx.fillText("A / B  —  start day 1", 78, 160);
+    ctx.fillText("Best  D" + this.bestDay, 78, 176);
+
+    var mx = 92;
+    var my = 122;
+    ctx.fillStyle = BG;
+    ctx.fillRect(mx - 7, my - 9, 14, 13);
+    this.ink(ctx);
+    ctx.fillRect(mx - 6, my - 7, 11, 10);
+    ctx.fillRect(mx - 7, my - 9, 5, 5);
+    ctx.fillRect(mx + 2, my - 9, 5, 5);
+    ctx.fillStyle = BG;
+    ctx.fillRect(mx - 1, my - 3, 3, 3);
+
+    this.ink(ctx);
+    ctx.beginPath();
+    ctx.moveTo(mx + 8, my - 2);
+    ctx.lineTo(140, 118);
+    ctx.stroke();
+    ctx.fillStyle = BG;
+    ctx.fillRect(136, 108, 10, 16);
+    this.ink(ctx);
+    ctx.fillRect(137, 109, 8, 14);
+    ctx.fillStyle = BG;
+    ctx.fillRect(139, 111, 3, 3);
   };
 
   Game.prototype.ensureWorld = function () {
@@ -1043,7 +1299,8 @@
     this.drawActors(g);
     this.drawDebug(g);
     g.restore();
-    this.drawHud(g);
+    if (this.state === "splash") this.drawSplash(g);
+    else this.drawHud(g);
     if (Dither) {
       var img = g.getImageData(0, 0, VIEW_W, VIEW_H);
       Dither.ditherImageData(img);
@@ -1070,6 +1327,8 @@
     CAR_H_X: CAR_H_X,
     CAR_W_Y: CAR_W_Y,
     CAR_H_Y: CAR_H_Y,
+    WALK_SLOW: WALK_SLOW,
+    WALK_SPEED: WALK_SPEED,
   };
   if (typeof module !== "undefined" && module.exports) {
     module.exports = root.GoMomoGame;

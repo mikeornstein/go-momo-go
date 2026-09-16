@@ -21,6 +21,9 @@
     "house_face_2x2_b",
     "house_face_2x3",
     "house_home_2x3",
+    "house_home_3x3",
+    "house_home_landmark",
+    "house_home_landmark_2x3",
     "fence_h",
     "fence_v",
     "fence_corner_nw",
@@ -82,14 +85,64 @@
     var img;
     var flipY = b.face === "n";
     if (b.home) {
-      img = this.tile("house_home_2x3");
-      if (this.blit(ctx, img, b.x, b.y, b.w, b.h, false, false)) return;
+      img =
+        this.tile("house_home_landmark") ||
+        this.tile("house_home_landmark_2x3") ||
+        this.tile("house_home_2x3") ||
+        this.tile("house_home_3x3");
+      if (this.blit(ctx, img, b.x, b.y, b.w, b.h, false, false)) {
+        this.drawHomeLandmark(ctx, b);
+        return;
+      }
     } else {
       var name = HOUSE_2X2[(b.variant || 0) % HOUSE_2X2.length];
       img = this.tile(name);
       if (this.blit(ctx, img, b.x, b.y, b.w, b.h, false, flipY)) return;
     }
     this.drawHouseProcedural(ctx, b);
+    if (b.home) this.drawHomeLandmark(ctx, b);
+  };
+
+  Art.prototype.drawHomeLandmark = function (ctx, b) {
+    var x = Math.floor(b.x);
+    var y = Math.floor(b.y);
+    var w = Math.floor(b.w);
+    var h = Math.floor(b.h);
+    ctx.imageSmoothingEnabled = false;
+    var poleX = x + w - 7;
+    var poleY = y - 10;
+    ctx.fillStyle = INK;
+    ctx.fillRect(poleX, poleY, 2, 16);
+    ctx.fillStyle = BG;
+    ctx.fillRect(poleX + 2, poleY, 10, 7);
+    ctx.fillStyle = INK;
+    ctx.fillRect(poleX + 2, poleY, 10, 1);
+    ctx.fillRect(poleX + 2, poleY + 6, 10, 1);
+    ctx.fillRect(poleX + 11, poleY, 1, 7);
+    ctx.fillRect(poleX + 4, poleY + 2, 3, 3);
+
+    var doorW = 10;
+    var doorH = 16;
+    var doorX = x + Math.floor(w / 2) - Math.floor(doorW / 2);
+    var doorY = y + h - doorH;
+    ctx.fillStyle = INK;
+    ctx.fillRect(doorX - 1, doorY - 1, doorW + 2, doorH + 1);
+    ctx.fillStyle = BG;
+    ctx.fillRect(doorX, doorY, doorW, doorH - 1);
+    ctx.fillStyle = INK;
+    ctx.fillRect(doorX + doorW - 3, doorY + Math.floor(doorH / 2), 2, 2);
+
+    ctx.fillStyle = BG;
+    ctx.fillRect(doorX - 2, y + h - 2, doorW + 4, 4);
+    ctx.fillStyle = INK;
+    ctx.fillRect(doorX - 2, y + h - 2, doorW + 4, 1);
+
+    var boxX = x + 2;
+    var boxY = y + h - 8;
+    ctx.fillStyle = INK;
+    ctx.fillRect(boxX, boxY, 6, 6);
+    ctx.fillStyle = BG;
+    ctx.fillRect(boxX + 1, boxY + 1, 4, 3);
   };
 
   Art.prototype.fenceStamp = function (n) {
@@ -269,6 +322,7 @@
     SHEET_HOUSES: "assets/houses.png",
     SHEET_FENCES: "assets/fences.png",
     SHEET_CARS: "assets/cars.png",
+    HOME_LANDMARK: ["house_home_landmark", "house_home_landmark_2x3"],
     CELL: CELL,
   };
 

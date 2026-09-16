@@ -127,6 +127,24 @@ for (var s = 0; s < seeds.length; s++) {
   tally(map.spawns.dogs);
   tally(map.spawns.peemail);
   assert(nearNpc > farNpc, tag + " busier sidewalks near center (" + nearNpc + " vs " + farNpc + ")");
+
+  var mimis = 0;
+  var walkers = 0;
+  var pi;
+  for (pi = 0; pi < map.spawns.people.length; pi++) {
+    var person = map.spawns.people[pi];
+    assert(person.waypoints && person.waypoints.length >= 4, tag + " person " + pi + " has a home loop");
+    if (person.kind === "mimi") mimis++;
+    else walkers++;
+  }
+  assert(map.spawns.dogs.length > 0, tag + " has dogs");
+  assert(mimis > 0, tag + " has at least one Mimi");
+  assert(walkers === map.spawns.dogs.length, tag + " every dog has a walker (" + walkers + " vs " + map.spawns.dogs.length + ")");
+  for (pi = 0; pi < map.spawns.dogs.length; pi++) {
+    var dog = map.spawns.dogs[pi];
+    var owner = map.spawns.people[dog.ownerIndex];
+    assert(owner && owner.kind !== "mimi", tag + " dog " + pi + " is walked by a person, not a Mimi");
+  }
 }
 
 console.log("ok — " + seeds.length + " seeds");
@@ -416,6 +434,7 @@ assert(GameApi.COPY.house !== GameApi.COPY.clock, "house vs clock copy are diffe
 assert(GameApi.COPY.win === "Good boy.", "win copy unchanged");
 
 var houseLose = new Game(20260914);
+houseLose.state = "play";
 houseLose.hasLeftHome = true;
 houseLose.didPoop = false;
 houseLose.clock = 40;
@@ -427,6 +446,7 @@ assert(houseLose.endReason === "house", "home before poop is a house accident");
 assert(houseLose.endCopy === GameApi.COPY.house, "house accident uses house copy");
 
 var clockLose = new Game(20260914);
+clockLose.state = "play";
 clockLose.hasLeftHome = true;
 clockLose.didPoop = false;
 clockLose.clock = 0;
@@ -448,6 +468,7 @@ assert(playA.map.seed === seedPlay, "A during play does not reroll the seed");
 assert(playA.walker.x === walkerX, "A during play does not reset the walker");
 
 var playB = new Game(20260914);
+playB.state = "play";
 playB.update(0.016, fakeInput(false, true));
 assert(playB.state === "play", "B during play does not change state");
 assert(playB.map.seed === 20260914, "B during play does not change neighborhood");
@@ -463,6 +484,65 @@ leak.endCopy = GameApi.COPY.clock;
 leak.update(0.016, fakeInput(false, false));
 assert(leak.level === 2, "A pressed during play does not start-over on the next lose frame");
 assert(leak.state === "lost", "leftover A does not consume the lose overlay");
+
+var splash = new Game(20260914);
+assert(splash.state === "splash", "new game opens on the splash");
+splash.update(0.016, fakeInput(true, false));
+assert(splash.state === "play", "A on splash starts play");
+assert(splash.level === 1, "A on splash stays on day 1");
+assert(splash.map.seed === 20260914, "A on splash keeps the neighborhood");
+
+var splashB = new Game(20260914);
+splashB.update(0.016, fakeInput(false, true));
+assert(splashB.state === "play", "B on splash starts play");
+assert(splashB.map.seed === 20260914, "B on splash does not reroll");
+
+var live = new Game(20260914);
+live.state = "play";
+assert(live.dayLabel() === "D1", "HUD day label is D1 at the start");
+assert(live.people.some(function (p) { return p.kind === "mimi"; }), "play has at least one Mimi");
+assert(live.dogs.every(function (d) {
+  return live.people[d.ownerIndex] && live.people[d.ownerIndex].kind === "person";
+}), "every dog is paired with a walker");
+assert(live.people.filter(function (p) { return p.kind === "mimi"; }).every(function (m, idx, arr) {
+  return live.dogs.every(function (d) { return live.people[d.ownerIndex] !== m; });
+}), "Mimis do not have dogs");
+
+var slowGame = new Game(20260914);
+slowGame.state = "play";
+slowGame.people = [];
+slowGame.dogs = [];
+slowGame.peemail = [];
+slowGame.cars = [];
+assert(slowGame.crowdSlow().mul === 1, "no crowd is full walk speed");
+slowGame.people = [{ x: slowGame.walker.x + 8, y: slowGame.walker.y, dirX: 0, dirY: 0, kind: "person", timer: 1, wait: 9, wp: 0, waypoints: [], dropT: 99 }];
+var slowed = slowGame.crowdSlow();
+assert(slowed.mul === GameApi.WALK_SLOW, "nearby person applies the walk-slow multiplier");
+assert(slowed.hit && slowed.hit.kind === "person", "slow names the person");
+slowGame.people = [{ x: slowGame.walker.x + 8, y: slowGame.walker.y, dirX: 0, dirY: 0, kind: "mimi", timer: 1, wait: 9, wp: 0, waypoints: [], dropT: 99 }];
+assert(slowGame.crowdSlow().hit.kind === "mimi", "a Mimi also slows the walker");
+slowGame.updateWalker(0.05, { x: 1, y: 0 });
+assert(slowGame.poop === 0, "slow-while-walking does not fill the pace meter");
+slowGame.walkable = function () {
+  return true;
+};
+slowGame.people = [];
+slowGame.stun = 0;
+slowGame.walker.x = 200;
+slowGame.walker.y = 120;
+slowGame.updateWalker(0.1, { x: 1, y: 0 });
+var clearX = slowGame.walker.x;
+slowGame.walker.x = 200;
+slowGame.people = [{ x: 208, y: 120, dirX: 0, dirY: 0, kind: "person", timer: 1, wait: 9, wp: 0, waypoints: [], dropT: 99 }];
+slowGame.updateWalker(0.1, { x: 1, y: 0 });
+assert(slowGame.walker.x - 200 < (clearX - 200) * 0.6, "crowd slow reduces distance walked in the same dt");
+
+assert(artSrc.indexOf("house_home_landmark") !== -1, "art has a landmark swap path");
+assert(typeof stampArt.drawHomeLandmark === "function", "art draws a home landmark cue");
+
+assert(gameSrc.indexOf("Day ") !== -1, "end screen talks in days");
+assert(gameSrc.indexOf("Go Momo Go") !== -1, "splash title is Go Momo Go");
+assert(GameApi.WALK_SLOW < 1, "crowd slow multiplier is below full walk speed");
 
 if (fails) {
   console.error(fails + " assertion(s) failed");
