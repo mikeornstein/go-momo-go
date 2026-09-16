@@ -1,7 +1,8 @@
-// House / fence stamps for the 20px cell grid.
-// Procedural 1-bit-friendly greys by default. Drop sheets in web/art/ to replace:
-//   art/house.png  — horizontal 40×40 frames (optional second row 40×60 for home)
-//   art/fence.png  — 20×20 (or a horizontal strip of 20×20 frames)
+// House / fence / car stamps for the 20px cell grid.
+// Procedural 1-bit-friendly greys by default. Drop sheets in web/assets/ to replace:
+//   assets/house.png  — horizontal 40×40 frames (optional second row 40×60 for home)
+//   assets/fence.png  — 20×20 (or a horizontal strip of 20×20 frames)
+//   assets/car.png    — 16×10 frames (col 0 = east-west, col 1 = north-south)
 (function (root) {
   "use strict";
 
@@ -15,7 +16,7 @@
   var CELL = 20;
 
   function Art() {
-    this.sheets = { house: null, fence: null };
+    this.sheets = { house: null, fence: null, car: null };
     this._load();
   }
 
@@ -30,10 +31,11 @@
       img.onerror = function () {
         /* missing sheet is the procedural path */
       };
-      img.src = "art/" + name + ".png";
+      img.src = "assets/" + name + ".png";
     }
     grab("house");
     grab("fence");
+    grab("car");
   };
 
   Art.prototype.drawHouse = function (ctx, b) {
@@ -202,10 +204,35 @@
     ctx.fillRect(x + size - 4, y + size - 7, 3, 3);
   };
 
+  Art.prototype.tryBlitCar = function (ctx, c, x, y) {
+    var sheet = this.sheets.car;
+    if (!sheet || !sheet.width) return false;
+    var frameW = 16;
+    var frameH = 10;
+    var col = c.axis === "y" ? 1 : 0;
+    if (sheet.width < frameW) return false;
+    if (col * frameW >= sheet.width) col = 0;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+      sheet,
+      col * frameW,
+      0,
+      Math.min(frameW, sheet.width - col * frameW),
+      Math.min(frameH, sheet.height),
+      x,
+      y,
+      c.w,
+      c.h
+    );
+    return true;
+  };
+
   var api = {
     Art: Art,
-    SHEET_HOUSE: "art/house.png",
-    SHEET_FENCE: "art/fence.png",
+    DIR: "assets/",
+    SHEET_HOUSE: "assets/house.png",
+    SHEET_FENCE: "assets/fence.png",
+    SHEET_CAR: "assets/car.png",
     CELL: CELL,
   };
 

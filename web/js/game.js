@@ -25,8 +25,8 @@
 
   var COPY = {
     win: "Good boy.",
-    clock: "He can hold it. You cannot.",
-    house: "Accident. Inside.",
+    clock: "Late for work.",
+    house: "Home before poop. Accident inside.",
   };
 
   var WALK_SPEED = 60;
@@ -820,6 +820,22 @@
     ctx.fillRect(mx - 1, my - 4, 3, 2);
   };
 
+  Game.prototype.drawEndCopy = function (ctx, text, x, y) {
+    var raw = String(text || "");
+    var parts = raw.split(". ");
+    if (parts.length < 2) {
+      ctx.fillText(raw, x, y);
+      return 1;
+    }
+    var i;
+    for (i = 0; i < parts.length; i++) {
+      var line = parts[i];
+      if (i < parts.length - 1 && line.charAt(line.length - 1) !== ".") line += ".";
+      ctx.fillText(line, x, y + i * 16);
+    }
+    return parts.length;
+  };
+
   Game.prototype.drawCar = function (ctx, c) {
     var x = Math.floor(c.x - c.w / 2);
     var y = Math.floor(c.y - c.h / 2);
@@ -827,6 +843,7 @@
       this.drawFlashBox(ctx, x, y, c.w, c.h);
       this.drawFlashMark(ctx, c.x, y);
     }
+    if (this.art && this.art.tryBlitCar(ctx, c, x, y)) return;
     this.ink(ctx);
     ctx.fillRect(x, y, c.w, c.h);
     ctx.fillStyle = BG;
@@ -965,14 +982,15 @@
       ctx.fillRect(50, 72, 300, 96);
       ctx.fillStyle = BG;
       ctx.font = "13px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText(this.endCopy, 62, 90);
+      var copyLines = this.drawEndCopy(ctx, this.endCopy, 62, 88);
       ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+      var hintY = 88 + copyLines * 16 + 8;
       if (this.state === "won") {
-        ctx.fillText("Enter / A — next level (" + (this.level + 1) + ")", 62, 118);
-        ctx.fillText("N / B — next neighborhood", 62, 134);
+        ctx.fillText("Enter / A — next level (" + (this.level + 1) + ")", 62, hintY);
+        ctx.fillText("N / B — next neighborhood", 62, hintY + 16);
       } else {
-        ctx.fillText("Enter / A — start over (level 1)", 62, 118);
-        ctx.fillText("N / B — new neighborhood (level 1)", 62, 134);
+        ctx.fillText("Enter / A — start over (level 1)", 62, hintY);
+        ctx.fillText("N / B — new neighborhood (level 1)", 62, hintY + 16);
       }
     }
   };

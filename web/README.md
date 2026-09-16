@@ -4,7 +4,7 @@ Playable **procedural** arcade loop in the browser. Game pixels are **400×240**
 
 Plan of record: sidewalks both sides, cars on streets, crosswalks at intersections, home at the center, busy-near / quiet-far, grass on yard edges. **Difficulty rises each win** (more sidewalk traffic / cars / pee-mail and a shorter clock). **A loss returns to level 1** / the first neighborhood.
 
-Houses and fences are procedural stamps (`web/js/art.js`). Optional sheets can drop in at `web/art/house.png` and `web/art/fence.png` — see `web/art/README.md`.
+Houses and fences are procedural stamps (`web/js/art.js`). Optional sheets drop in at `web/assets/house.png`, `web/assets/fence.png`, and `web/assets/car.png` — see `web/assets/README.md`.
 
 ## Open
 
@@ -34,7 +34,7 @@ Optional query: `?seed=20260914` (default) or `?debug=1` to outline the 4×8 lot
 | B / N | **End screens only.** After a **win**: next level (new neighborhood). After a **loss**: new neighborhood at **level 1**. During play: does nothing. |
 
 **Win:** poop on grass, then reach the home stoop before the clock. Difficulty goes up one level.  
-**Lose:** clock hits zero (`He can hold it. You cannot.`), or you step back onto the stoop after leaving without having pooped — house accident (`Accident. Inside.`). Continue from **level 1**, not a retry of the block you lost.
+**Lose:** clock hits zero (`Late for work.`), or you step back onto the stoop after leaving without having pooped — house accident (`Home before poop. Accident inside.`). Continue from **level 1**, not a retry of the block you lost.
 
 Each level adds dogs / cars / people / pee-mail and shortens the clock (`75s` at L1, −8s per level, floor `32s`). Interrupts (person, dog, pee-mail, close car) **reset** poop progress and **flash the source entity**. Streets are for cars; you only cross on the zebra stripes. Farther blocks are quieter and a longer walk home.
 

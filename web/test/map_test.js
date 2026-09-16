@@ -336,7 +336,11 @@ assert(css.indexOf("▲") === -1 && css.indexOf("▼") === -1, "CSS has no Unico
 assert(css.indexOf("align-items: center") !== -1 && css.indexOf("justify-content: center") !== -1, "A/B buttons flex-center their glyphs");
 assert(html.indexOf("js/dither.js") !== -1, "index loads Bayer dither");
 assert(html.indexOf("js/art.js") !== -1, "index loads house/fence art stamps");
-assert(fs.existsSync(path.join(__dirname, "..", "art", "README.md")), "art sheet hook is documented");
+assert(fs.existsSync(path.join(__dirname, "..", "assets", "README.md")), "art sheet hook is documented under web/assets");
+var artSrc = fs.readFileSync(path.join(jsDir, "art.js"), "utf8");
+assert(artSrc.indexOf("assets/house.png") !== -1, "house sheet path is web/assets/house.png");
+assert(artSrc.indexOf("assets/fence.png") !== -1, "fence sheet path is web/assets/fence.png");
+assert(artSrc.indexOf("assets/car.png") !== -1, "car sheet path is web/assets/car.png");
 
 var Dither = context.GoMomoDither;
 assert(Dither.BG === "#c9d63a" && Dither.INK === "#2a1c12", "Playdate palette constants");
@@ -372,10 +376,12 @@ var gameSrc = fs.readFileSync(path.join(jsDir, "game.js"), "utf8");
 assert(gameSrc.indexOf("#8f8f88") === -1, "game.js has no mid-gray sidewalk fill");
 assert(gameSrc.indexOf("#0e0c0a") === -1, "game.js has no near-black road fill");
 assert(gameSrc.indexOf("You left it.") === -1, "house-accident copy is no longer the generic leave line");
+assert(gameSrc.indexOf("Accident. Inside.") === -1, "placeholder house copy is gone");
+assert(gameSrc.indexOf("He can hold it. You cannot.") === -1, "placeholder clock copy is gone");
 
 var GameApi = context.GoMomoGame;
-assert(GameApi.COPY.house === "Accident. Inside.", "house accident placeholder copy");
-assert(GameApi.COPY.clock === "He can hold it. You cannot.", "clock timeout copy stays distinct");
+assert(GameApi.COPY.house === "Home before poop. Accident inside.", "house accident locked copy");
+assert(GameApi.COPY.clock === "Late for work.", "clock timeout locked copy");
 assert(GameApi.COPY.house !== GameApi.COPY.clock, "house vs clock copy are different");
 assert(GameApi.COPY.win === "Good boy.", "win copy unchanged");
 
