@@ -4,7 +4,7 @@ Playable **procedural** arcade loop in the browser. Game pixels are **400×240**
 
 Plan of record: sidewalks both sides, cars on streets, crosswalks at intersections, home at the center, busy-near / quiet-far, grass on yard edges. **Difficulty rises each win** (more sidewalk traffic / cars / pee-mail and a shorter clock). **A loss returns to level 1** / the first neighborhood.
 
-Houses, fences, and cars blit Game Art Director stamps from [`web/assets/`](assets/) (`house_2x2*.png`, `house_home_2x3.png`, `fence_*.png`, `car_h_20x12.png` / `car_v_12x20.png`). Player home gets a landmark flag / stoop / mailbox on top of `house_home_2x3.png` (drop `house_home_landmark.png` to replace). Procedural drawing is a 404 fallback. See `web/assets/README.md`.
+Houses, fences, cars, Mimis, splash, and the player-home zhuz blit Game Art Director stamps from [`web/assets/`](assets/). Player home prefers `house_home_zhuz.png` (40×60). Splash is `splash.png` (400×240). Mimis use `mimi.png` (12×20). Procedural drawing is a 404 fallback. See `web/assets/README.md`.
 
 ## Open
 
@@ -38,7 +38,7 @@ Optional query: `?seed=20260914` (default) or `?debug=1` to outline the 4×8 lot
 
 People walk loops from their own houses; dogs are leashed to those walkers (no lone dogs). **Mimis** (grandmas, no dog) use the same loop and the same distract class. Nearby distractions **slow your walk** even when you are not pacing. Dogs drop pee-mail along the route. Interrupts (person, mimi, dog, pee-mail, close car) **reset** poop progress and **flash the source entity**. Streets are for cars; you only cross on the zebra stripes. Farther blocks are quieter and a longer walk home.
 
-A 1-bit splash waits for A/B before the clock starts. Locked copy: **Go Momo Go** / **Poop. Then home.**
+A 1-bit splash waits for A/B before the clock starts. Art card `splash.png` (title **GO MOMO GO** / **Poop. Then home.**). Fallback copy lock: **Go Momo Go** / **Poop. Then home.**
 
 On-screen d-pad / A·B glyphs are CSS shapes or `::before` content (no Unicode text nodes) so Mobile Safari cannot select them.
 

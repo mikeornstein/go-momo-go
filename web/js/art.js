@@ -22,8 +22,12 @@
     "house_face_2x3",
     "house_home_2x3",
     "house_home_3x3",
+    "house_home_zhuz",
+    "house_home_zhuz_3x3",
     "house_home_landmark",
     "house_home_landmark_2x3",
+    "splash",
+    "mimi",
     "fence_h",
     "fence_v",
     "fence_corner_nw",
@@ -85,13 +89,18 @@
     var img;
     var flipY = b.face === "n";
     if (b.home) {
+      var zhuz = this.tile("house_home_zhuz");
       img =
+        zhuz ||
         this.tile("house_home_landmark") ||
         this.tile("house_home_landmark_2x3") ||
         this.tile("house_home_2x3") ||
+        this.tile("house_home_zhuz_3x3") ||
         this.tile("house_home_3x3");
       if (this.blit(ctx, img, b.x, b.y, b.w, b.h, false, false)) {
-        this.drawHomeLandmark(ctx, b);
+        if (!zhuz && !this.tile("house_home_landmark") && !this.tile("house_home_landmark_2x3")) {
+          this.drawHomeLandmark(ctx, b);
+        }
         return;
       }
     } else {
@@ -177,6 +186,20 @@
     var flipX = horiz && c.dir < 0;
     var flipY = !horiz && c.dir < 0;
     return this.blit(ctx, img, x, y, c.w, c.h, flipX, flipY);
+  };
+
+  Art.prototype.tryBlitMimi = function (ctx, p, x, y) {
+    var img = this.tile("mimi");
+    if (!img) return false;
+    return this.blit(ctx, img, x, y, 12, 20, p.dirX < 0, false);
+  };
+
+  Art.prototype.tryBlitSplash = function (ctx) {
+    var img = this.tile("splash");
+    if (!img) return false;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, 400, 240);
+    return true;
   };
 
   Art.prototype.drawHouseProcedural = function (ctx, b) {
@@ -322,7 +345,9 @@
     SHEET_HOUSES: "assets/houses.png",
     SHEET_FENCES: "assets/fences.png",
     SHEET_CARS: "assets/cars.png",
-    HOME_LANDMARK: ["house_home_landmark", "house_home_landmark_2x3"],
+    HOME_LANDMARK: ["house_home_zhuz", "house_home_zhuz_3x3", "house_home_landmark", "house_home_landmark_2x3"],
+    SPLASH: "assets/splash.png",
+    MIMI: "assets/mimi.png",
     CELL: CELL,
   };
 

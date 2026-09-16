@@ -368,6 +368,10 @@ var assetsDir = path.join(__dirname, "..", "assets");
   "house_2x2_b.png",
   "house_face_2x2.png",
   "house_home_2x3.png",
+  "house_home_zhuz.png",
+  "house_home_zhuz_3x3.png",
+  "splash.png",
+  "mimi.png",
   "fence_h.png",
   "fence_v.png",
   "fence_corner_nw.png",
@@ -381,7 +385,8 @@ var assetsDir = path.join(__dirname, "..", "assets");
   assert(fs.existsSync(path.join(assetsDir, name)), "asset " + name + " is in web/assets");
 });
 var artSrc = fs.readFileSync(path.join(jsDir, "art.js"), "utf8");
-assert(artSrc.indexOf("house_home_2x3") !== -1, "art blits house_home_2x3 for home");
+assert(artSrc.indexOf("house_home_zhuz") !== -1, "art prefers house_home_zhuz for the player home");
+assert(artSrc.indexOf("house_home_2x3") !== -1, "art keeps house_home_2x3 as fallback");
 assert(artSrc.indexOf("car_h_20x12") !== -1, "art prefers car_h_20x12");
 assert(artSrc.indexOf("fence_corner_nw") !== -1, "art autotiles fence corners");
 var ArtApi = context.GoMomoArt;
@@ -537,8 +542,10 @@ slowGame.people = [{ x: 208, y: 120, dirX: 0, dirY: 0, kind: "person", timer: 1,
 slowGame.updateWalker(0.1, { x: 1, y: 0 });
 assert(slowGame.walker.x - 200 < (clearX - 200) * 0.6, "crowd slow reduces distance walked in the same dt");
 
-assert(artSrc.indexOf("house_home_landmark") !== -1, "art has a landmark swap path");
-assert(typeof stampArt.drawHomeLandmark === "function", "art draws a home landmark cue");
+assert(artSrc.indexOf("house_home_zhuz") !== -1, "art has a zhuz landmark swap path");
+assert(artSrc.indexOf("tryBlitSplash") !== -1, "art blits splash.png full canvas");
+assert(artSrc.indexOf("tryBlitMimi") !== -1, "art blits mimi.png for Mimis");
+assert(typeof stampArt.drawHomeLandmark === "function", "art keeps a procedural home landmark fallback");
 
 assert(gameSrc.indexOf("Day ") !== -1, "end screen talks in days");
 assert(GameApi.COPY.splashTitle === "Go Momo Go", "splash title locked");

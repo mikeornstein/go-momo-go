@@ -1095,24 +1095,32 @@
     for (i = 0; i < this.cars.length; i++) this.drawCar(ctx, this.cars[i]);
     for (i = 0; i < this.people.length; i++) {
       var p = this.people[i];
+      if (p.kind === "mimi") {
+        var mx = Math.floor(p.x - 6);
+        var my = Math.floor(p.y - 18);
+        if (this.isFlashing(p)) {
+          this.drawFlashBox(ctx, mx, my, 12, 20);
+          this.drawFlashMark(ctx, p.x, my);
+        }
+        if (this.art && this.art.tryBlitMimi(ctx, p, mx, my)) continue;
+        ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? BG : INK;
+        ctx.fillRect(mx + 2, my + 4, 8, 14);
+        ctx.fillRect(mx + 3, my, 6, 6);
+        ctx.fillRect(mx + 4, my - 2, 4, 3);
+        ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? INK : BG;
+        ctx.fillRect(mx + 5, my + 3, 2, 2);
+        continue;
+      }
       var px = Math.floor(p.x - 3);
-      var py = Math.floor(p.y - (p.kind === "mimi" ? 9 : 8));
+      var py = Math.floor(p.y - 8);
       if (this.isFlashing(p)) {
-        this.drawFlashBox(ctx, px, py, p.kind === "mimi" ? 8 : 6, p.kind === "mimi" ? 13 : 11);
+        this.drawFlashBox(ctx, px, py, 6, 11);
         this.drawFlashMark(ctx, p.x, py);
       }
       ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? BG : INK;
-      if (p.kind === "mimi") {
-        ctx.fillRect(px, py + 3, 8, 10);
-        ctx.fillRect(px + 1, py, 6, 5);
-        ctx.fillRect(px + 2, py - 2, 4, 3);
-        ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? INK : BG;
-        ctx.fillRect(px + 3, py + 2, 2, 2);
-      } else {
-        ctx.fillRect(px, py, 6, 11);
-        ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? INK : BG;
-        ctx.fillRect(px + 2, py + 2, 2, 2);
-      }
+      ctx.fillRect(px, py, 6, 11);
+      ctx.fillStyle = this.isFlashing(p) && this.flashPulse() ? INK : BG;
+      ctx.fillRect(px + 2, py + 2, 2, 2);
     }
     for (i = 0; i < this.dogs.length; i++) {
       var d = this.dogs[i];
@@ -1238,6 +1246,13 @@
   };
 
   Game.prototype.drawSplash = function (ctx) {
+    if (this.art && this.art.tryBlitSplash(ctx)) {
+      ctx.fillStyle = BG;
+      ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.textBaseline = "top";
+      ctx.fillText("A / B", 8, 226);
+      return;
+    }
     ctx.fillStyle = BG;
     ctx.fillRect(36, 28, 328, 168);
     this.ink(ctx);
@@ -1291,19 +1306,22 @@
     ctx.imageSmoothingEnabled = false;
     var g = this.ensureWorld();
     g.imageSmoothingEnabled = false;
-    g.save();
-    g.beginPath();
-    g.rect(0, 0, VIEW_W, VIEW_H);
-    g.clip();
-    g.translate(-this.cam.x, -this.cam.y);
-    this.drawYardDither(g);
-    this.drawCells(g);
-    this.drawBuildings(g);
-    this.drawActors(g);
-    this.drawDebug(g);
-    g.restore();
-    if (this.state === "splash") this.drawSplash(g);
-    else this.drawHud(g);
+    if (this.state === "splash") {
+      this.drawSplash(g);
+    } else {
+      g.save();
+      g.beginPath();
+      g.rect(0, 0, VIEW_W, VIEW_H);
+      g.clip();
+      g.translate(-this.cam.x, -this.cam.y);
+      this.drawYardDither(g);
+      this.drawCells(g);
+      this.drawBuildings(g);
+      this.drawActors(g);
+      this.drawDebug(g);
+      g.restore();
+      this.drawHud(g);
+    }
     if (Dither) {
       var img = g.getImageData(0, 0, VIEW_W, VIEW_H);
       Dither.ditherImageData(img);
