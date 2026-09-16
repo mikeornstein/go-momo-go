@@ -1012,6 +1012,7 @@
     this.drawActors(g);
     this.drawDebug(g);
     g.restore();
+    this.drawHud(g);
     if (Dither) {
       var img = g.getImageData(0, 0, VIEW_W, VIEW_H);
       Dither.ditherImageData(img);
@@ -1019,7 +1020,6 @@
     } else {
       ctx.drawImage(this._world, 0, 0);
     }
-    this.drawHud(ctx);
   };
 
   root.GoMomoGame = {
