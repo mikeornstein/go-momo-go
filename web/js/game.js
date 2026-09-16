@@ -37,7 +37,7 @@
   };
   // Lime band that covers baked splash.png title so bitmap type can sit on top.
   // Art Director sheets drop in as web/assets/splash.png; raise/lower if the scene moves.
-  var SPLASH_TITLE_BAND = 90;
+  var SPLASH_TITLE_BAND = 102;
 
   var CAR_W_X = 20;
   var CAR_H_X = 12;
