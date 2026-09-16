@@ -27,6 +27,8 @@
     win: "Good boy.",
     clock: "Late for work.",
     house: "Home before poop. Accident inside.",
+    splashTitle: "Go Momo Go",
+    splashSub: "Poop. Then home.",
   };
 
   var CAR_W_X = 20;
@@ -1243,9 +1245,10 @@
     ctx.fillStyle = BG;
     ctx.font = "22px ui-monospace, SFMono-Regular, Menlo, monospace";
     ctx.textBaseline = "top";
-    ctx.fillText("Go Momo Go", 78, 46);
+    ctx.fillText(COPY.splashTitle, 78, 46);
+    ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(COPY.splashSub, 78, 78);
     ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.fillText("Walk the block. Pace. Get home.", 78, 76);
     ctx.fillText("A / B  —  start day 1", 78, 160);
     ctx.fillText("Best  D" + this.bestDay, 78, 176);
 

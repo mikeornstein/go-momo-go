@@ -38,7 +38,7 @@ Optional query: `?seed=20260914` (default) or `?debug=1` to outline the 4×8 lot
 
 People walk loops from their own houses; dogs are leashed to those walkers (no lone dogs). **Mimis** (grandmas, no dog) use the same loop and the same distract class. Nearby distractions **slow your walk** even when you are not pacing. Dogs drop pee-mail along the route. Interrupts (person, mimi, dog, pee-mail, close car) **reset** poop progress and **flash the source entity**. Streets are for cars; you only cross on the zebra stripes. Farther blocks are quieter and a longer walk home.
 
-A cute **Go Momo Go** splash (1-bit) waits for A/B before the clock starts.
+A 1-bit splash waits for A/B before the clock starts. Locked copy: **Go Momo Go** / **Poop. Then home.**
 
 On-screen d-pad / A·B glyphs are CSS shapes or `::before` content (no Unicode text nodes) so Mobile Safari cannot select them.
 

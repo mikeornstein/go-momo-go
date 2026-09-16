@@ -541,7 +541,9 @@ assert(artSrc.indexOf("house_home_landmark") !== -1, "art has a landmark swap pa
 assert(typeof stampArt.drawHomeLandmark === "function", "art draws a home landmark cue");
 
 assert(gameSrc.indexOf("Day ") !== -1, "end screen talks in days");
-assert(gameSrc.indexOf("Go Momo Go") !== -1, "splash title is Go Momo Go");
+assert(GameApi.COPY.splashTitle === "Go Momo Go", "splash title locked");
+assert(GameApi.COPY.splashSub === "Poop. Then home.", "splash subtitle locked");
+assert(gameSrc.indexOf("Walk the block. Pace. Get home.") === -1, "placeholder splash subtitle is gone");
 assert(GameApi.WALK_SLOW < 1, "crowd slow multiplier is below full walk speed");
 
 if (fails) {
