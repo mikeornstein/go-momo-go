@@ -798,17 +798,26 @@
 
   Game.prototype.drawFlashBox = function (ctx, x, y, w, h) {
     var pulse = this.flashPulse();
+    var fx = Math.floor(x);
+    var fy = Math.floor(y);
     ctx.fillStyle = pulse ? BG : INK;
-    ctx.fillRect(Math.floor(x) - 2, Math.floor(y) - 2, w + 4, h + 4);
+    ctx.fillRect(fx - 4, fy - 10, w + 8, h + 14);
     ctx.fillStyle = pulse ? INK : BG;
-    ctx.fillRect(Math.floor(x) - 1, Math.floor(y) - 1, w + 2, h + 2);
+    ctx.fillRect(fx - 2, fy - 2, w + 4, h + 4);
+    ctx.fillStyle = pulse ? BG : INK;
+    ctx.fillRect(fx, fy, w, h);
   };
 
   Game.prototype.drawFlashMark = function (ctx, x, y) {
     var pulse = this.flashPulse();
+    var mx = Math.floor(x);
+    var my = Math.floor(y);
+    ctx.fillStyle = pulse ? INK : BG;
+    ctx.fillRect(mx - 3, my - 16, 7, 10);
+    ctx.fillRect(mx - 3, my - 5, 7, 4);
     ctx.fillStyle = pulse ? BG : INK;
-    ctx.fillRect(Math.floor(x) - 1, Math.floor(y) - 12, 3, 7);
-    ctx.fillRect(Math.floor(x) - 1, Math.floor(y) - 4, 3, 3);
+    ctx.fillRect(mx - 1, my - 14, 3, 6);
+    ctx.fillRect(mx - 1, my - 4, 3, 2);
   };
 
   Game.prototype.drawCar = function (ctx, c) {
