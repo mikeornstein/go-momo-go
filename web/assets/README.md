@@ -13,7 +13,7 @@ Final LCD pixels are Bayer-dithered to lime `#c9d63a` + ink `#2a1c12`. Sprites m
 | `house_home_zhuz.png` | **Player home landmark**, 40×60, door south. Prefers over `house_home_2x3`. |
 | `house_home_zhuz_3x3.png` | Optional denser 60×60 home. On disk for later layout. |
 | `house_home_landmark.png` / `house_home_landmark_2x3.png` | Extra landmark swap path. Missing → zhuz, else `house_home_2x3` plus flag / stoop / mailbox overlay. |
-| `splash.png` | Full 400×240 Art Director title card (playtest #4). Baked **GO MOMO GO** / **Poop. Then home.** plus big Momo + walker. Engine blits it full-canvas; only A/B / Best hints are post-dither bitmap type. |
+| `splash.png` | Full 400×240 Art Director Imagine next-pass title card. Baked **GO MOMO GO** / **Poop. Then home.** Poster: Momo lower-left, walker right, taut leash, wall cat+heart, Bayer halftone. Engine blits it full-canvas; only A/B / Best hints are post-dither bitmap type. |
 | `mimi.png` | 12×20 grandma NPC (no dog). |
 | `house_face_3x2*.png` / `house_face_3x3*.png` / `house_home_3x3.png` | Denser 3×2 / 3×3 variants on disk for later layout; not blitted until lots grow. |
 | `fence_h.png` / `fence_v.png` / `fence_corner_*.png` / `fence_gate.png` | 20×20 perimeter autotile. |
